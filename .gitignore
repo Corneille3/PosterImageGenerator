@@ -19,9 +19,4 @@ crash.log
 # Secrets
 .env
 
-.venv/
-__pycache__/
-*.pyc
-.terraform/
-terraform.tfstate*
 
