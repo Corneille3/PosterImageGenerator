@@ -18,6 +18,7 @@ module "poster_api" {
   lambda_src_dir      = "${path.module}/../../../lambda"
 }
 
-output "api_url" {
-  value = module.poster_api.api_url
+output "invoke_url" {
+  value = module.poster_api.invoke_url
 }
+
