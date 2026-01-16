@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket         = "YOUR_STATE_BUCKET_NAME"
+    bucket         = "corneille3-terraform-state-734401619562"
     key            = "poster-image/prod/terraform.tfstate"
     region         = "us-east-2"
     dynamodb_table = "terraform-locks"
