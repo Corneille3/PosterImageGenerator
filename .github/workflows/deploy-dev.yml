@@ -39,3 +39,4 @@ jobs:
       - name: Show DEV endpoint
         working-directory: infra/envs/dev
         run: terraform output -raw invoke_url
+
