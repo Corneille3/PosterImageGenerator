@@ -38,3 +38,4 @@ jobs:
       - name: Show PROD endpoint
         working-directory: infra/envs/prod
         run: terraform output -raw invoke_url
+
