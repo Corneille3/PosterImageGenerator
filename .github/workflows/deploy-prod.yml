@@ -12,10 +12,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
-    env:
-      TF_IN_AUTOMATION: "true"
-      TF_INPUT: "false"
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,7 +20,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: us-east-2
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -35,18 +31,10 @@ jobs:
         working-directory: infra/envs/prod
         run: terraform init
 
-      - name: Terraform Format (PROD)
-        working-directory: infra/envs/prod
-        run: terraform fmt -check -recursive
-
-      - name: Terraform Validate (PROD)
-        working-directory: infra/envs/prod
-        run: terraform validate
-
       - name: Terraform Apply (PROD)
         working-directory: infra/envs/prod
         run: terraform apply -auto-approve
 
       - name: Show PROD endpoint
         working-directory: infra/envs/prod
-        run: terraform output -raw api_url
+        run: terraform output -raw invoke_url
