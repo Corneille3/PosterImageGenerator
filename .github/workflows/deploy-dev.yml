@@ -13,6 +13,10 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
 
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,7 +25,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-2
+          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -31,6 +35,14 @@ jobs:
       - name: Terraform Init (DEV)
         working-directory: infra/envs/dev
         run: terraform init
+
+      - name: Terraform Format (DEV)
+        working-directory: infra/envs/dev
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate (DEV)
+        working-directory: infra/envs/dev
+        run: terraform validate
 
       - name: Terraform Apply (DEV)
         working-directory: infra/envs/dev
