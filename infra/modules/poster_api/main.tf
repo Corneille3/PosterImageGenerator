@@ -108,20 +108,20 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect = "Allow",
         Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
-      }
+      },
+         {
+          Sid    = "KMSDecrypt",
+          Effect = "Allow",
+          Action = [
+            "kms:Decrypt",
+            "kms:GenerateDataKey"
+      ],
+      Resource = "*"
+    }
+
     ]
   })
 }
-
-#Attaching this AWS-managed policy gives your Lambda execution
-
-resource "aws_iam_role_policy_attachment" "lambda_kms" {
-  role       = aws_iam_role.lambda_exec.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaKMSExecutionRole"
-}
-
-
-
 # -------------------------
 # Lambda function
 # -------------------------
