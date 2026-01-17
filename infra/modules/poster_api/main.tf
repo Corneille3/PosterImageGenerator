@@ -13,32 +13,27 @@ terraform {
   }
 }
 
-# Looks up the AWS-managed Lambda KMS key
-data "aws_kms_alias" "lambda_env" {
-  name = "alias/aws/lambda"
-}
-
 # -------------------------
 # Variables
 # -------------------------
 variable "env" { type = string }
 
-# Region where Lambda + API Gateway live (us-east-2 for your setup)
+# Region where Lambda + API Gateway live (us-east-2)
 variable "region" { type = string }
 
-# S3 bucket name (bucket is also in us-east-2 for your setup)
+# S3 bucket name (bucket is also in us-east-2)
 variable "bucket_name" { type = string }
 
-# Bedrock region where SD 3.5 Large is available (us-west-2 for your setup)
+# Bedrock region (us-west-2)
 variable "bedrock_region" { type = string }
 
 # Bedrock model ID
 variable "model_id" { type = string }
 
-# S3 key prefix (e.g., "generated/" OR "generated")
+# S3 key prefix (e.g., "generated/dev/" or "generated/prod/")
 variable "key_prefix" { type = string }
 
-# Path to your repo's /lambda directory
+# Path to repo /lambda directory
 variable "lambda_src_dir" { type = string }
 
 # Presigned URL expiry
@@ -52,7 +47,6 @@ provider "aws" {
 }
 
 locals {
-  # Ensure the prefix always becomes "something/"
   key_prefix_normalized = trimsuffix(var.key_prefix, "/")
   s3_prefix_for_keys    = "${local.key_prefix_normalized}/"
 }
@@ -67,7 +61,7 @@ data "archive_file" "lambda_zip" {
 }
 
 # -------------------------
-# IAM: Lambda execution role + inline policy
+# IAM: Lambda execution role
 # -------------------------
 resource "aws_iam_role" "lambda_exec" {
   name = "poster-image-${var.env}-lambda-exec"
@@ -82,6 +76,57 @@ resource "aws_iam_role" "lambda_exec" {
   })
 }
 
+# -------------------------
+# KMS (Fix #2): customer-managed key for Lambda env vars
+# -------------------------
+data "aws_caller_identity" "current" {}
+
+resource "aws_kms_key" "lambda_env" {
+  description             = "KMS key for poster-image ${var.env} Lambda environment variables"
+  enable_key_rotation     = true
+  deletion_window_in_days = 7
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      # Allow account root full control
+      {
+        Sid      = "AllowAccountRootFullAccess",
+        Effect   = "Allow",
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        },
+        Action   = "kms:*",
+        Resource = "*"
+      },
+
+      # Allow the Lambda execution role to decrypt env vars
+      {
+        Sid      = "AllowLambdaRoleUseKey",
+        Effect   = "Allow",
+        Principal = {
+          AWS = aws_iam_role.lambda_exec.arn
+        },
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_kms_alias" "lambda_env_alias" {
+  name          = "alias/poster-image-${var.env}-lambda-env"
+  target_key_id = aws_kms_key.lambda_env.key_id
+}
+
+# -------------------------
+# Inline policy for role
+# -------------------------
 resource "aws_iam_role_policy" "lambda_policy" {
   name = "poster-image-${var.env}-policy"
   role = aws_iam_role.lambda_exec.id
@@ -97,7 +142,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Resource = "*"
       },
 
-      # S3 Put/Get limited to the prefix
+      # S3 Put/Get limited to prefix
       {
         Sid      = "S3WriteReadGenerated",
         Effect   = "Allow",
@@ -113,12 +158,12 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Resource = "*"
       },
 
-      # Allow decrypt of Lambda environment variables (KMS - AWS managed alias/aws/lambda)
+      # Allow KMS decrypt (our CMK)
       {
-        Sid      = "AllowKMSDecryptForEnvVars",
+        Sid      = "KMSDecryptLambdaEnv",
         Effect   = "Allow",
         Action   = ["kms:Decrypt", "kms:DescribeKey"],
-        Resource = data.aws_kms_alias.lambda_env.target_key_arn
+        Resource = aws_kms_key.lambda_env.arn
       }
     ]
   })
@@ -139,6 +184,9 @@ resource "aws_lambda_function" "fn" {
 
   timeout     = 60
   memory_size = 256
+
+  # ✅ Force Lambda env var encryption to use OUR key
+  kms_key_arn = aws_kms_key.lambda_env.arn
 
   environment {
     variables = {
