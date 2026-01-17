@@ -13,6 +13,11 @@ terraform {
   }
 }
 
+# Looks up the AWS-managed Lambda KMS key
+data "aws_kms_alias" "lambda_env" {
+  name = "alias/aws/lambda"
+}
+
 # -------------------------
 # Variables
 # -------------------------
@@ -33,7 +38,7 @@ variable "model_id" { type = string }
 # S3 key prefix (e.g., "generated/" OR "generated")
 variable "key_prefix" { type = string }
 
-# Path to your repo's /lambda directory (e.g., "${path.root}/../../lambda" or "./lambda" from env dir)
+# Path to your repo's /lambda directory
 variable "lambda_src_dir" { type = string }
 
 # Presigned URL expiry
@@ -55,8 +60,6 @@ locals {
 # -------------------------
 # Package Lambda (zip)
 # -------------------------
-# NOTE: Do NOT use a build/ folder unless you create it.
-# This writes the zip in the module folder reliably (works in GitHub Actions too).
 data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = var.lambda_src_dir
@@ -96,23 +99,31 @@ resource "aws_iam_role_policy" "lambda_policy" {
 
       # S3 Put/Get limited to the prefix
       {
-        Sid    = "S3WriteReadGenerated",
-        Effect = "Allow",
-        Action = ["s3:PutObject", "s3:GetObject"],
+        Sid      = "S3WriteReadGenerated",
+        Effect   = "Allow",
+        Action   = ["s3:PutObject", "s3:GetObject"],
         Resource = "arn:aws:s3:::${var.bucket_name}/${local.key_prefix_normalized}/*"
       },
 
       # CloudWatch logs
       {
-        Sid    = "CloudWatchLogs",
-        Effect = "Allow",
-        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+        Sid      = "CloudWatchLogs",
+        Effect   = "Allow",
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
-      }
+      },
 
+      # Allow decrypt of Lambda environment variables (KMS - AWS managed alias/aws/lambda)
+      {
+        Sid      = "AllowKMSDecryptForEnvVars",
+        Effect   = "Allow",
+        Action   = ["kms:Decrypt", "kms:DescribeKey"],
+        Resource = data.aws_kms_alias.lambda_env.target_key_arn
+      }
     ]
   })
 }
+
 # -------------------------
 # Lambda function
 # -------------------------
@@ -120,10 +131,8 @@ resource "aws_lambda_function" "fn" {
   function_name = "poster-image-generator-${var.env}"
   role          = aws_iam_role.lambda_exec.arn
 
-  # Your repo contains lambda/lambda_function.py, and we're zipping the /lambda folder,
-  # so handler is correct.
   handler = "lambda_function.lambda_handler"
-  runtime  = "python3.11"
+  runtime = "python3.11"
 
   filename         = data.archive_file.lambda_zip.output_path
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
@@ -171,7 +180,6 @@ resource "aws_apigatewayv2_stage" "stage" {
   auto_deploy = true
 }
 
-# Allow API Gateway to invoke the Lambda
 resource "aws_lambda_permission" "allow_apigw" {
   statement_id  = "AllowAPIGatewayInvoke-${var.env}"
   action        = "lambda:InvokeFunction"
