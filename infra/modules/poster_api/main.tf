@@ -108,16 +108,7 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect = "Allow",
         Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
-      },
-         {
-          Sid    = "KMSDecrypt",
-          Effect = "Allow",
-          Action = [
-            "kms:Decrypt",
-            "kms:GenerateDataKey"
-      ],
-      Resource = "*"
-    }
+      }
 
     ]
   })
