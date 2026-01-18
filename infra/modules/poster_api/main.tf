@@ -99,10 +99,6 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
       }
-
-      # NOTE:
-      # If your account has env var encryption requiring KMS access, keep the KMS policy you already used.
-      # We are not changing that part here because your setup already works locally.
     ]
   })
 }
@@ -163,7 +159,6 @@ resource "aws_apigatewayv2_integration" "lambda" {
 resource "aws_cognito_user_pool" "pool" {
   name = "poster-users-${var.env}"
 
-  # Simple email login
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
 
@@ -180,10 +175,12 @@ resource "aws_cognito_user_pool_client" "client" {
   name         = "poster-client-${var.env}"
   user_pool_id = aws_cognito_user_pool.pool.id
 
-    # ✅ Token validity (VALID ranges)
-  access_token_validity = 60   # 60 minutes (5..1440)
-  id_token_validity     = 60   # 60 minutes (5..1440)
-  refresh_token_validity = 30  # 30 days (1..3650 if using days)
+  # ✅ Valid ranges:
+  # - minutes: access/id token validity: 5..1440
+  # - days: refresh token validity: 1..3650
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 30
 
   token_validity_units {
     access_token  = "minutes"
@@ -191,7 +188,6 @@ resource "aws_cognito_user_pool_client" "client" {
     refresh_token = "days"
   }
 
-  # allow USER_PASSWORD_AUTH for quick testing (CLI/Postman)
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
