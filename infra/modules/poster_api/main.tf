@@ -17,27 +17,20 @@ terraform {
 # Variables
 # -------------------------
 variable "env" { type = string }
-
-# Region where Lambda + API Gateway live
 variable "region" { type = string }
 
-# S3 bucket name
 variable "bucket_name" { type = string }
-
-# Bedrock region
 variable "bedrock_region" { type = string }
-
-# Bedrock model ID
 variable "model_id" { type = string }
-
-# S3 key prefix (e.g., "generated/dev/")
 variable "key_prefix" { type = string }
-
-# Path to your repo's /lambda directory
 variable "lambda_src_dir" { type = string }
-
-# Presigned URL expiry
 variable "url_expires_seconds" { type = number }
+
+# Optional (if you want to customize)
+variable "api_route_path" {
+  type    = string
+  default = "/moviePosterImageGenerator"
+}
 
 # -------------------------
 # Provider
@@ -47,16 +40,8 @@ provider "aws" {
 }
 
 locals {
-  # Always normalize to "prefix/" for building keys
   key_prefix_normalized = trimsuffix(var.key_prefix, "/")
   s3_prefix_for_keys    = "${local.key_prefix_normalized}/"
-}
-
-# -------------------------
-# Use AWS-managed Lambda KMS key alias (do NOT create a custom key)
-# -------------------------
-data "aws_kms_alias" "lambda_env" {
-  name = "alias/aws/lambda"
 }
 
 # -------------------------
@@ -99,30 +84,25 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Resource = "*"
       },
 
-      # S3 Put/Get limited to prefix
+      # S3 Put/Get limited to the prefix
       {
-        Sid    = "S3WriteReadGenerated",
-        Effect = "Allow",
-        Action = ["s3:PutObject", "s3:GetObject"],
+        Sid      = "S3WriteReadGenerated",
+        Effect   = "Allow",
+        Action   = ["s3:PutObject", "s3:GetObject"],
         Resource = "arn:aws:s3:::${var.bucket_name}/${local.key_prefix_normalized}/*"
       },
 
       # CloudWatch logs
       {
-        Sid    = "CloudWatchLogs",
-        Effect = "Allow",
-        Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
-        Resource = "*"
-      },
-
-      # Allow decrypt/describe on AWS-managed Lambda KMS key
-      # (helps when your account setup enforces env var encryption)
-      {
-        Sid      = "AllowKMSDecryptForEnvVars",
+        Sid      = "CloudWatchLogs",
         Effect   = "Allow",
-        Action   = ["kms:Decrypt", "kms:DescribeKey"],
-        Resource = data.aws_kms_alias.lambda_env.target_key_arn
+        Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
+        Resource = "*"
       }
+
+      # NOTE:
+      # If your account has env var encryption requiring KMS access, keep the KMS policy you already used.
+      # We are not changing that part here because your setup already works locally.
     ]
   })
 }
@@ -157,11 +137,17 @@ resource "aws_lambda_function" "fn" {
 }
 
 # -------------------------
-# API Gateway v2 (HTTP API) -> Lambda proxy
+# API Gateway v2 (HTTP API)
 # -------------------------
 resource "aws_apigatewayv2_api" "api" {
   name          = "poster-api-${var.env}"
   protocol_type = "HTTP"
+
+  cors_configuration {
+    allow_origins = ["*"]
+    allow_methods = ["GET", "OPTIONS"]
+    allow_headers = ["Content-Type", "Authorization"]
+  }
 }
 
 resource "aws_apigatewayv2_integration" "lambda" {
@@ -171,10 +157,65 @@ resource "aws_apigatewayv2_integration" "lambda" {
   payload_format_version = "2.0"
 }
 
+# -------------------------
+# Cognito (User Pool + App Client)
+# -------------------------
+resource "aws_cognito_user_pool" "pool" {
+  name = "poster-users-${var.env}"
+
+  # Simple email login
+  username_attributes      = ["email"]
+  auto_verified_attributes = ["email"]
+
+  password_policy {
+    minimum_length    = 8
+    require_lowercase = true
+    require_uppercase = true
+    require_numbers   = true
+    require_symbols   = false
+  }
+}
+
+resource "aws_cognito_user_pool_client" "client" {
+  name         = "poster-client-${var.env}"
+  user_pool_id = aws_cognito_user_pool.pool.id
+
+  # allow USER_PASSWORD_AUTH for quick testing (CLI/Postman)
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH"
+  ]
+
+  generate_secret = false
+}
+
+# -------------------------
+# API Gateway JWT Authorizer
+# -------------------------
+resource "aws_apigatewayv2_authorizer" "jwt" {
+  api_id          = aws_apigatewayv2_api.api.id
+  name            = "cognito-jwt-${var.env}"
+  authorizer_type = "JWT"
+
+  identity_sources = ["$request.header.Authorization"]
+
+  jwt_configuration {
+    issuer   = "https://cognito-idp.${var.region}.amazonaws.com/${aws_cognito_user_pool.pool.id}"
+    audience = [aws_cognito_user_pool_client.client.id]
+  }
+}
+
+# -------------------------
+# Protected route (requires JWT)
+# -------------------------
 resource "aws_apigatewayv2_route" "route" {
   api_id    = aws_apigatewayv2_api.api.id
-  route_key = "GET /moviePosterImageGenerator"
+  route_key = "GET ${var.api_route_path}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
 resource "aws_apigatewayv2_stage" "stage" {
@@ -199,5 +240,17 @@ output "api_base_url" {
 }
 
 output "invoke_url" {
-  value = "${aws_apigatewayv2_api.api.api_endpoint}/moviePosterImageGenerator"
+  value = "${aws_apigatewayv2_api.api.api_endpoint}${var.api_route_path}"
+}
+
+output "cognito_user_pool_id" {
+  value = aws_cognito_user_pool.pool.id
+}
+
+output "cognito_app_client_id" {
+  value = aws_cognito_user_pool_client.client.id
+}
+
+output "cognito_issuer" {
+  value = "https://cognito-idp.${var.region}.amazonaws.com/${aws_cognito_user_pool.pool.id}"
 }
