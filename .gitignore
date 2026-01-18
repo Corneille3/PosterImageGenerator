@@ -1,25 +1,38 @@
+# -------------------------
 # Python
+# -------------------------
 __pycache__/
 *.pyc
 *.pyo
+
+# Virtual environments
 .venv/
 venv/
 
-#Lambda build artifacts
-infra/modules/poster_api/*.zip
+# -------------------------
+# Terraform
+# -------------------------
+# Local Terraform directories
+.terraform/
 
-# OS/IDE
+# Terraform state files (never commit these)
+terraform.tfstate
+terraform.tfstate.*
+
+# Crash logs
+crash.log
+
+# -------------------------
+# OS / IDE
+# -------------------------
 .DS_Store
 .vscode/
 .idea/
 
-# Terraform
-**/.terraform/
-*.tfstate
-*.tfstate.*
-crash.log
-
-# Secrets
+# -------------------------
+# Secrets / Environment
+# -------------------------
 .env
 
-
+#ignore artifact
+lambda_*.zip

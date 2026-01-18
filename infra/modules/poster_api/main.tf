@@ -180,6 +180,17 @@ resource "aws_cognito_user_pool_client" "client" {
   name         = "poster-client-${var.env}"
   user_pool_id = aws_cognito_user_pool.pool.id
 
+    # ✅ Token validity (VALID ranges)
+  access_token_validity = 60   # 60 minutes (5..1440)
+  id_token_validity     = 60   # 60 minutes (5..1440)
+  refresh_token_validity = 30  # 30 days (1..3650 if using days)
+
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
+
   # allow USER_PASSWORD_AUTH for quick testing (CLI/Postman)
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
