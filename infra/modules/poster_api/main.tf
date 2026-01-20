@@ -227,7 +227,14 @@ resource "aws_apigatewayv2_route" "route" {
 
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+
+  # Force correct ordering when authorizer needs replacement
+  depends_on = [
+    aws_apigatewayv2_authorizer.jwt,
+    aws_apigatewayv2_integration.lambda
+  ]
 }
+
 
 resource "aws_apigatewayv2_stage" "stage" {
   api_id      = aws_apigatewayv2_api.api.id
