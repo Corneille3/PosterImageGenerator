@@ -18,7 +18,22 @@ module "poster_api" {
   lambda_src_dir      = "${path.module}/../../../lambda"
 }
 
+output "api_base_url" {
+  value = module.poster_api.api_base_url
+}
+
 output "invoke_url" {
   value = module.poster_api.invoke_url
 }
 
+output "cognito_user_pool_id" {
+  value = module.poster_api.cognito_user_pool_id
+}
+
+output "cognito_app_client_id" {
+  value = module.poster_api.cognito_app_client_id
+}
+
+output "cognito_issuer" {
+  value = module.poster_api.cognito_issuer
+}
