@@ -202,7 +202,7 @@ resource "aws_cognito_user_pool_client" "client" {
 # -------------------------
 resource "aws_apigatewayv2_authorizer" "jwt" {
   api_id          = aws_apigatewayv2_api.api.id
-  name            = "cognito-jwt-${var.env}"
+  name            = "cognito-jwt-${var.env}-${aws_cognito_user_pool.pool.id}"
   authorizer_type = "JWT"
 
   identity_sources = ["$request.header.Authorization"]
@@ -210,6 +210,10 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
   jwt_configuration {
     issuer   = "https://cognito-idp.${var.region}.amazonaws.com/${aws_cognito_user_pool.pool.id}"
     audience = [aws_cognito_user_pool_client.client.id]
+  }
+
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
