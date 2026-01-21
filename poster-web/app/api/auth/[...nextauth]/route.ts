@@ -5,10 +5,10 @@ const handler = NextAuth({
   providers: [
     CognitoProvider({
       clientId: process.env.COGNITO_CLIENT_ID!,
+      clientSecret: "unused", // required by NextAuth types (public client)
       issuer: process.env.COGNITO_ISSUER!,
-      clientSecret: "unused", // ✅ only to satisfy types in this NextAuth version
 
-      // ✅ public client: no client secret at /token
+      // Public client: no client authentication at token endpoint
       client: { token_endpoint_auth_method: "none" },
 
       checks: ["pkce", "state"],
@@ -22,10 +22,10 @@ const handler = NextAuth({
       return token;
     },
     async session({ session, token }) {
+      // @ts-ignore (typed later)
+      session.accessToken = token.accessToken;
       // @ts-ignore
-      session.accessToken = token.accessToken as string;
-      // @ts-ignore
-      session.idToken = token.idToken as string;
+      session.idToken = token.idToken;
       return session;
     },
   },
