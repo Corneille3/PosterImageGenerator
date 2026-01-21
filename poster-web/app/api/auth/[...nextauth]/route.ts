@@ -5,8 +5,13 @@ const handler = NextAuth({
   providers: [
     CognitoProvider({
       clientId: process.env.COGNITO_CLIENT_ID!,
-      clientSecret: process.env.COGNITO_CLIENT_SECRET || "",
-      issuer: process.env.COGNITO_ISSUER!, // ✅ use user pool issuer
+      issuer: process.env.COGNITO_ISSUER!,
+      clientSecret: "unused", // ✅ only to satisfy types in this NextAuth version
+
+      // ✅ public client: no client secret at /token
+      client: { token_endpoint_auth_method: "none" },
+
+      checks: ["pkce", "state"],
     }),
   ],
   session: { strategy: "jwt" },
@@ -24,6 +29,7 @@ const handler = NextAuth({
       return session;
     },
   },
+  debug: true,
 });
 
 export { handler as GET, handler as POST };
