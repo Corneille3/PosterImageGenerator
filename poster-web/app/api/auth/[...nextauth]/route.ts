@@ -1,6 +1,5 @@
-import NextAuth from "next-auth";
+import NextAuth, { type NextAuthOptions } from "next-auth";
 import CognitoProvider from "next-auth/providers/cognito";
-
 
 function decodeJwtPayload(token: string): any {
   const payload = token.split(".")[1];
@@ -9,8 +8,7 @@ function decodeJwtPayload(token: string): any {
   return JSON.parse(json);
 }
 
-
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     CognitoProvider({
       clientId: process.env.COGNITO_CLIENT_ID!,
@@ -19,34 +17,40 @@ const handler = NextAuth({
 
       // Public client: no client authentication at token endpoint
       client: { token_endpoint_auth_method: "none" },
-
       checks: ["pkce", "state"],
     }),
   ],
+
   session: { strategy: "jwt" },
 
   callbacks: {
     async jwt({ token, account }) {
       if (account?.access_token) token.accessToken = account.access_token;
-      if (account?.id_token) {
-      token.idToken = account.id_token;
+      if (account?.id_token) token.idToken = account.id_token;
 
-      // Extract Cognito groups from id_token
-      const payload = decodeJwtPayload(account.id_token);
-      token.groups = payload["cognito:groups"] ?? [];
-    }
-    return token;
-  },
+      // Extract Cognito groups from id_token (preferred) or access_token (fallback)
+      const idPayload = account?.id_token ? decodeJwtPayload(account.id_token) : null;
+      const accessPayload = account?.access_token ? decodeJwtPayload(account.access_token) : null;
+
+      token.groups =
+        idPayload?.["cognito:groups"] ??
+        accessPayload?.["cognito:groups"] ??
+        [];
+
+      return token;
+    },
 
     async session({ session, token }) {
-      session.accessToken = token.accessToken;
-      session.idToken = token.idToken;
-      session.groups = token.groups ?? [];
+      session.accessToken = token.accessToken as string | undefined;
+      session.idToken = token.idToken as string | undefined;
+      session.groups = (token.groups as string[]) ?? [];
       return session;
+    },
   },
-},
 
   debug: true,
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
