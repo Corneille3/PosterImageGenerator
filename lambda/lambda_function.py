@@ -56,6 +56,12 @@ def _json_body(event: dict) -> dict:
 
 
 def lambda_handler(event, context):
+
+    # Enforce admin for this endpoint (or only for certain paths)
+    deny = require_admin(event)
+    if deny:
+        return deny
+    
     event = event or {}
     method = _method(event)
 
@@ -134,3 +140,24 @@ def lambda_handler(event, context):
     )
 
     return _resp(200, {"presigned_url": presigned_url})
+
+def get_claims(event: dict) -> dict:
+    # HTTP API JWT authorizer claims live here (payload v2)
+    auth = event.get("requestContext", {}).get("authorizer", {})
+    jwt = auth.get("jwt", {})
+    return jwt.get("claims", {}) or {}
+
+def require_admin(event: dict):
+    claims = get_claims(event)
+    groups = claims.get("cognito:groups", [])
+    # Sometimes groups can come as a string; normalize
+    if isinstance(groups, str):
+        groups = [g.strip() for g in groups.split(",") if g.strip()]
+
+    if "admin" not in groups:
+        return {
+            "statusCode": 403,
+            "headers": {"Content-Type": "application/json"},
+            "body": '{"message":"Forbidden: admin group required"}',
+        }
+    return None
