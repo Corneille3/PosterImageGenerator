@@ -57,14 +57,9 @@ def _json_body(event: dict) -> dict:
 
 def lambda_handler(event, context):
 
-    # Enforce admin for this endpoint (or only for certain paths)
-    deny = require_admin(event)
-    if deny:
-        return deny
-    
     event = event or {}
-    method = _method(event)
 
+    method = _method(event)
     # CORS preflight (HTTP API v2)
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": _headers(), "body": json.dumps({"ok": True})}
