@@ -32,7 +32,9 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  return NextResponse.next();
+ //return NextResponse.next();
+  return NextResponse.redirect(new URL("/unauthorized", req.url));
+
 }
 
 export const config = {

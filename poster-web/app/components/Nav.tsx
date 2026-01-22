@@ -3,23 +3,11 @@
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
-export default function Admin() {
-  const { data: session } = useSession();
-
-  return (
-    <div style={{ padding: 24 }}>
-      <h1>Admin (Protected)</h1>
-      <p>Groups: {session?.groups?.join(", ") ?? "(none)"}</p>
-      <p>If you can see this page, middleware allowed you in.</p>
-    </div>
-  );
-}
-
 export function Nav() {
   const { data: session } = useSession();
 
   return (
-    <nav style={{ display: "flex", gap: 16 }}>
+    <nav style={{ display: "flex", gap: 16, marginBottom: 16 }}>
       <Link href="/">Home</Link>
       <Link href="/dashboard">Dashboard</Link>
 
