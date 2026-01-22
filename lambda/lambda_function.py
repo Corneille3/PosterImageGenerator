@@ -6,7 +6,7 @@ import boto3
 from datetime import datetime, timezone
 from botocore.config import Config
 
-# Regions (your confirmed setup)
+# Regions
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-west-2")
 S3_REGION = os.environ.get("S3_REGION", "us-east-2")
 
@@ -18,24 +18,19 @@ URL_EXPIRES_SECONDS = int(os.environ.get("URL_EXPIRES_SECONDS", "3600"))
 
 # AWS clients
 bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
-
-# Force SigV4 for consistent presigned URLs
-s3 = boto3.client(
-    "s3",
-    region_name=S3_REGION,
-    config=Config(signature_version="s3v4"),
-)
+s3 = boto3.client("s3", region_name=S3_REGION, config=Config(signature_version="s3v4"))
 
 ALLOWED_ASPECT_RATIOS = {"1:1", "16:9", "9:16", "4:3", "3:4"}
 ALLOWED_OUTPUT_FORMATS = {"png", "jpg", "jpeg"}
 
 
 def _headers():
+    # NOTE: For dev we can keep "*" but for prod you should lock to your domain(s)
     return {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     }
 
 
@@ -43,33 +38,51 @@ def _resp(code: int, payload: dict):
     return {"statusCode": code, "headers": _headers(), "body": json.dumps(payload)}
 
 
+def _method(event: dict) -> str:
+    # HTTP API v2 payload
+    return (event.get("requestContext", {}).get("http", {}).get("method") or "").upper()
+
+
+def _json_body(event: dict) -> dict:
+    body = event.get("body")
+    if not body:
+        return {}
+    if event.get("isBase64Encoded"):
+        body = base64.b64decode(body).decode("utf-8")
+    try:
+        return json.loads(body)
+    except Exception:
+        return {}
+
+
 def lambda_handler(event, context):
     event = event or {}
+    method = _method(event)
 
-    # CORS preflight
-    if event.get("httpMethod") == "OPTIONS":
+    # CORS preflight (HTTP API v2)
+    if method == "OPTIONS":
         return {"statusCode": 200, "headers": _headers(), "body": json.dumps({"ok": True})}
 
     qsp = event.get("queryStringParameters") or {}
+    body = _json_body(event)
 
-    # Supports Lambda test events {"prompt":"..."} and API GW proxy GET ?prompt=...
-    prompt = (event.get("prompt") or qsp.get("prompt") or "").strip()
+    # Accept POST JSON body or GET query string
+    prompt = (body.get("prompt") or qsp.get("prompt") or "").strip()
     if not prompt:
         return _resp(400, {"error": "Missing required parameter: prompt"})
 
-    negative_prompt = (event.get("negative_prompt") or qsp.get("negative_prompt") or "").strip()
+    negative_prompt = (body.get("negative_prompt") or qsp.get("negative_prompt") or "").strip()
 
-    aspect_ratio = (event.get("aspect_ratio") or qsp.get("aspect_ratio") or "1:1").strip()
+    aspect_ratio = (body.get("aspect_ratio") or qsp.get("aspect_ratio") or "1:1").strip()
     if aspect_ratio not in ALLOWED_ASPECT_RATIOS:
         return _resp(400, {"error": f"Invalid aspect_ratio. Allowed: {sorted(ALLOWED_ASPECT_RATIOS)}"})
 
-    output_format = (event.get("output_format") or qsp.get("output_format") or "png").strip().lower()
+    output_format = (body.get("output_format") or qsp.get("output_format") or "png").strip().lower()
     if output_format == "jpeg":
         output_format = "jpg"
     if output_format not in ALLOWED_OUTPUT_FORMATS:
         return _resp(400, {"error": f"Invalid output_format. Allowed: {sorted(ALLOWED_OUTPUT_FORMATS)}"})
 
-    # SD3.5 allowed fields: prompt, negative_prompt, mode, strength, seed, output_format, image, aspect_ratio
     request_body = {
         "prompt": prompt,
         "negative_prompt": negative_prompt,
@@ -120,5 +133,4 @@ def lambda_handler(event, context):
         HttpMethod="GET",
     )
 
-    # Return only the presigned URL (clean)
     return _resp(200, {"presigned_url": presigned_url})
