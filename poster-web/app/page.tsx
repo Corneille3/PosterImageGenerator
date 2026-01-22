@@ -1,6 +1,7 @@
 "use client";
 
 import { signIn, signOut, useSession } from "next-auth/react";
+import Link from "next/link";
 
 export default function Home() {
   const { data: session, status } = useSession();
@@ -13,6 +14,29 @@ export default function Home() {
         {status === "authenticated" ? (
           <>
             <p>Signed in ✅</p>
+
+            {/* Show groups for visibility/debug */}
+            <p className="text-sm text-gray-600">
+              Groups: {session?.groups?.join(", ") || "(none)"}
+            </p>
+
+            {/* Admin link only for admin users */}
+            {session?.groups?.includes("admin") && (
+              <Link
+                href="/admin"
+                className="block text-blue-600 underline"
+              >
+                Go to Admin
+              </Link>
+            )}
+
+            <Link
+              href="/dashboard"
+              className="block text-blue-600 underline"
+            >
+              Go to Dashboard
+            </Link>
+
             <button
               className="px-4 py-2 rounded bg-black text-white"
               onClick={() => signOut()}
