@@ -334,9 +334,8 @@ output "cognito_app_client_id" {
 }
 
 output "ddb_table_name" {
-  value = aws_dynamodb_table.app.name
+  value = aws_dynamodb_table.id.name
 }
-
 
 output "cognito_issuer" {
   value = "https://cognito-idp.${var.region}.amazonaws.com/${aws_cognito_user_pool.pool.id}"
