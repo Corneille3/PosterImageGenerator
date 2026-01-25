@@ -3,8 +3,9 @@ import json
 import uuid
 import base64
 import boto3
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from botocore.config import Config
+from botocore.exceptions import ClientError
 
 # Regions
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-west-2")
@@ -16,9 +17,17 @@ BUCKET_NAME = os.environ["BUCKET_NAME"].strip()
 KEY_PREFIX = os.environ.get("KEY_PREFIX", "generated/").strip()
 URL_EXPIRES_SECONDS = int(os.environ.get("URL_EXPIRES_SECONDS", "3600"))
 
+# DynamoDB (credits + history)
+DDB_TABLE_NAME = os.environ.get("DDB_TABLE_NAME", "").strip()
+INITIAL_CREDITS = int(os.environ.get("INITIAL_CREDITS", "25"))
+HISTORY_TTL_DAYS = int(os.environ.get("HISTORY_TTL_DAYS", "30"))
+
 # AWS clients
 bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
 s3 = boto3.client("s3", region_name=S3_REGION, config=Config(signature_version="s3v4"))
+
+ddb = boto3.resource("dynamodb", region_name=S3_REGION) if DDB_TABLE_NAME else None
+table = ddb.Table(DDB_TABLE_NAME) if ddb else None
 
 ALLOWED_ASPECT_RATIOS = {"1:1", "16:9", "9:16", "4:3", "3:4"}
 ALLOWED_OUTPUT_FORMATS = {"png", "jpg", "jpeg"}
@@ -55,14 +64,138 @@ def _json_body(event: dict) -> dict:
         return {}
 
 
+def get_claims(event: dict) -> dict:
+    # HTTP API JWT authorizer claims live here (payload v2)
+    auth = event.get("requestContext", {}).get("authorizer", {})
+    jwt = auth.get("jwt", {})
+    return jwt.get("claims", {}) or {}
+
+
+def _user_sub(event: dict) -> str | None:
+    claims = get_claims(event)
+    # Access token typically includes "sub"
+    sub = claims.get("sub")
+    return sub
+
+
+def _pk(sub: str) -> str:
+    return f"USER#{sub}"
+
+
+def _credits_key(sub: str) -> dict:
+    return {"pk": _pk(sub), "sk": "CREDITS"}
+
+
+def _history_sk(ts_iso: str, req_id: str) -> str:
+    return f"GEN#{ts_iso}#{req_id}"
+
+
+def _ttl_epoch(days: int) -> int:
+    dt = datetime.now(timezone.utc) + timedelta(days=days)
+    return int(dt.timestamp())
+
+
+def reserve_credit_or_fail(sub: str) -> int:
+    """
+    Atomically:
+      - initializes credits if missing (INITIAL_CREDITS)
+      - decrements by 1
+      - blocks if credits == 0
+    Returns remaining credits AFTER decrement.
+    """
+    if not table:
+        # If Dynamo isn't configured yet, allow generation (or you can fail).
+        return -1
+
+    try:
+        resp = table.update_item(
+            Key=_credits_key(sub),
+            UpdateExpression="SET credits = if_not_exists(credits, :init) - :one, updatedAt = :now",
+            ConditionExpression="attribute_not_exists(credits) OR credits > :zero",
+            ExpressionAttributeValues={
+                ":init": INITIAL_CREDITS,
+                ":one": 1,
+                ":zero": 0,
+                ":now": datetime.now(timezone.utc).isoformat(),
+            },
+            ReturnValues="UPDATED_NEW",
+        )
+        remaining = int(resp["Attributes"]["credits"])
+        return remaining
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+            # Out of credits
+            raise ValueError("OUT_OF_CREDITS")
+        raise
+
+
+def refund_credit_best_effort(sub: str):
+    """Best-effort refund (+1) if generation fails after reserving a credit."""
+    if not table:
+        return
+    try:
+        table.update_item(
+            Key=_credits_key(sub),
+            UpdateExpression="SET credits = credits + :one, updatedAt = :now",
+            ExpressionAttributeValues={
+                ":one": 1,
+                ":now": datetime.now(timezone.utc).isoformat(),
+            },
+            ConditionExpression="attribute_exists(credits)",
+        )
+    except Exception:
+        # swallow refund errors (best effort)
+        return
+
+
+def write_history_best_effort(
+    sub: str,
+    ts_iso: str,
+    req_id: str,
+    prompt: str,
+    aspect_ratio: str,
+    output_format: str,
+    status: str,
+    s3_key: str | None = None,
+    error_message: str | None = None,
+):
+    if not table:
+        return
+    item = {
+        "pk": _pk(sub),
+        "sk": _history_sk(ts_iso, req_id),
+        "createdAt": ts_iso,
+        "status": status,
+        "prompt": prompt,
+        "aspect_ratio": aspect_ratio,
+        "output_format": output_format,
+    }
+    if s3_key:
+        item["s3Key"] = s3_key
+    if error_message:
+        item["errorMessage"] = error_message
+
+    if HISTORY_TTL_DAYS > 0:
+        item["ttl"] = _ttl_epoch(HISTORY_TTL_DAYS)
+
+    try:
+        table.put_item(Item=item)
+    except Exception:
+        return
+
+
 def lambda_handler(event, context):
-
     event = event or {}
-
     method = _method(event)
+
     # CORS preflight (HTTP API v2)
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": _headers(), "body": json.dumps({"ok": True})}
+
+    # Identity (JWT authorizer must be enabled on the route)
+    sub = _user_sub(event)
+    if not sub:
+        return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
 
     qsp = event.get("queryStringParameters") or {}
     body = _json_body(event)
@@ -84,75 +217,109 @@ def lambda_handler(event, context):
     if output_format not in ALLOWED_OUTPUT_FORMATS:
         return _resp(400, {"error": f"Invalid output_format. Allowed: {sorted(ALLOWED_OUTPUT_FORMATS)}"})
 
-    request_body = {
-        "prompt": prompt,
-        "negative_prompt": negative_prompt,
-        "mode": "text-to-image",
-        "seed": 0,
-        "output_format": output_format,
-        "aspect_ratio": aspect_ratio,
-    }
+    # Request IDs / timestamps for history
+    ts_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    req_id = uuid.uuid4().hex
 
-    br = bedrock.invoke_model(
-        modelId=MODEL_ID,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps(request_body),
-    )
+    # Reserve a credit (atomic). Refund on failure later (best effort).
+    try:
+        remaining = reserve_credit_or_fail(sub)
+    except ValueError as e:
+        if str(e) == "OUT_OF_CREDITS":
+            write_history_best_effort(
+                sub=sub,
+                ts_iso=ts_iso,
+                req_id=req_id,
+                prompt=prompt,
+                aspect_ratio=aspect_ratio,
+                output_format=output_format,
+                status="FAILED",
+                error_message="Out of credits",
+            )
+            return _resp(402, {"error": "Out of credits"})
+        raise
 
-    data = json.loads(br["body"].read())
-
-    # Extract base64
-    if "images" in data and data["images"]:
-        image_b64 = data["images"][0]
-    elif "artifacts" in data and data["artifacts"]:
-        image_b64 = data["artifacts"][0].get("base64")
-    else:
-        return _resp(502, {"error": "No image in Bedrock response", "raw": data})
-
-    image_bytes = base64.b64decode(image_b64)
-
-    # S3 key
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    prefix = KEY_PREFIX if KEY_PREFIX.endswith("/") else f"{KEY_PREFIX}/"
-    key = f"{prefix}{ts}-{uuid.uuid4().hex}.{output_format}"
-
-    # Upload
-    content_type = "image/png" if output_format == "png" else "image/jpeg"
-    s3.put_object(
-        Bucket=BUCKET_NAME,
-        Key=key,
-        Body=image_bytes,
-        ContentType=content_type,
-    )
-
-    # Pre-signed URL
-    presigned_url = s3.generate_presigned_url(
-        ClientMethod="get_object",
-        Params={"Bucket": BUCKET_NAME, "Key": key},
-        ExpiresIn=URL_EXPIRES_SECONDS,
-        HttpMethod="GET",
-    )
-
-    return _resp(200, {"presigned_url": presigned_url})
-
-def get_claims(event: dict) -> dict:
-    # HTTP API JWT authorizer claims live here (payload v2)
-    auth = event.get("requestContext", {}).get("authorizer", {})
-    jwt = auth.get("jwt", {})
-    return jwt.get("claims", {}) or {}
-
-def require_admin(event: dict):
-    claims = get_claims(event)
-    groups = claims.get("cognito:groups", [])
-    # Sometimes groups can come as a string; normalize
-    if isinstance(groups, str):
-        groups = [g.strip() for g in groups.split(",") if g.strip()]
-
-    if "admin" not in groups:
-        return {
-            "statusCode": 403,
-            "headers": {"Content-Type": "application/json"},
-            "body": '{"message":"Forbidden: admin group required"}',
+    try:
+        request_body = {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "mode": "text-to-image",
+            "seed": 0,
+            "output_format": output_format,
+            "aspect_ratio": aspect_ratio,
         }
-    return None
+
+        br = bedrock.invoke_model(
+            modelId=MODEL_ID,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(request_body),
+        )
+
+        data = json.loads(br["body"].read())
+
+        # Extract base64
+        if "images" in data and data["images"]:
+            image_b64 = data["images"][0]
+        elif "artifacts" in data and data["artifacts"]:
+            image_b64 = data["artifacts"][0].get("base64")
+        else:
+            raise RuntimeError(f"No image in Bedrock response: {data}")
+
+        image_bytes = base64.b64decode(image_b64)
+
+        # S3 key
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        prefix = KEY_PREFIX if KEY_PREFIX.endswith("/") else f"{KEY_PREFIX}/"
+        key = f"{prefix}{ts}-{req_id}.{output_format}"
+
+        # Upload
+        content_type = "image/png" if output_format == "png" else "image/jpeg"
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=key,
+            Body=image_bytes,
+            ContentType=content_type,
+        )
+
+        # Pre-signed URL
+        presigned_url = s3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": key},
+            ExpiresIn=URL_EXPIRES_SECONDS,
+            HttpMethod="GET",
+        )
+
+        # History success
+        write_history_best_effort(
+            sub=sub,
+            ts_iso=ts_iso,
+            req_id=req_id,
+            prompt=prompt,
+            aspect_ratio=aspect_ratio,
+            output_format=output_format,
+            status="SUCCESS",
+            s3_key=key,
+        )
+
+        payload = {"presigned_url": presigned_url}
+        if remaining >= 0:
+            payload["credits_remaining"] = remaining
+
+        return _resp(200, payload)
+
+    except Exception as e:
+        # Refund reserved credit if generation fails
+        refund_credit_best_effort(sub)
+
+        write_history_best_effort(
+            sub=sub,
+            ts_iso=ts_iso,
+            req_id=req_id,
+            prompt=prompt,
+            aspect_ratio=aspect_ratio,
+            output_format=output_format,
+            status="FAILED",
+            error_message=str(e),
+        )
+        return _resp(502, {"error": "Generation failed", "details": str(e)})

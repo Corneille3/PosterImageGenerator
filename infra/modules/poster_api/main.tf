@@ -26,11 +26,23 @@ variable "key_prefix" { type = string }
 variable "lambda_src_dir" { type = string }
 variable "url_expires_seconds" { type = number }
 
-# Optional (if you want to customize)
+# This is Optional in case customization is needed.
 variable "api_route_path" {
   type    = string
   default = "/moviePosterImageGenerator"
 }
+
+#Add variables for credits/history
+variable "initial_credits" {
+  type    = number
+  default = 25
+}
+
+variable "history_ttl_days" {
+  type    = number
+  default = 30
+}
+
 
 # -------------------------
 # Provider
@@ -51,6 +63,33 @@ data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = var.lambda_src_dir
   output_path = "${path.module}/lambda_${var.env}.zip"
+}
+
+resource "aws_dynamodb_table" "app" {
+  name         = "poster-app-${var.env}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
+  tags = {
+    Project = "PosterImageGenerator"
+    Env     = var.env
+  }
 }
 
 # -------------------------
@@ -98,7 +137,23 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect   = "Allow",
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
-      }
+      },
+            # DynamoDB (credits + history)
+      {
+        Sid    = "DynamoDBCreditsHistory",
+        Effect = "Allow",
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query"
+        ],
+        Resource = [
+          aws_dynamodb_table.app.arn,
+          "${aws_dynamodb_table.app.arn}/index/*"
+        ]
+      },
+
     ]
   })
 }
@@ -128,6 +183,11 @@ resource "aws_lambda_function" "fn" {
       BEDROCK_REGION = var.bedrock_region
       S3_REGION      = var.region
       MODEL_ID       = var.model_id
+
+      DDB_TABLE_NAME    = aws_dynamodb_table.app.name
+      INITIAL_CREDITS   = tostring(var.initial_credits)
+      HISTORY_TTL_DAYS  = tostring(var.history_ttl_days)
+
     }
   }
 }
@@ -271,6 +331,10 @@ output "cognito_user_pool_id" {
 
 output "cognito_app_client_id" {
   value = aws_cognito_user_pool_client.client.id
+}
+
+output "ddb_table_name" {
+  value = aws_dynamodb_table.app.name
 }
 
 output "cognito_issuer" {

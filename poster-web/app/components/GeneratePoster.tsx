@@ -9,6 +9,8 @@ export default function GeneratePoster() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
+
 
   const generate = async () => {
     setError(null);
@@ -43,6 +45,10 @@ export default function GeneratePoster() {
       }
 
       if (!res.ok) {
+        if (res.status === 402) {
+          setError("You have no credits remaining.");
+          return;
+        }
         setError(data?.error || `Generation failed (${res.status}).`);
         return;
       }
@@ -52,8 +58,14 @@ export default function GeneratePoster() {
         setError("No image URL returned by backend.");
         return;
       }
+      
+      //✅ READ CREDITS FROM BACKEND RESPONSE
+      if (typeof data?.credits_remaining === "number") {
+        setCreditsRemaining(data.credits_remaining);
+      }
 
       setImageUrl(url);
+
     } catch (e: any) {
       setError(e?.message || "Unexpected error.");
     } finally {
@@ -64,6 +76,13 @@ export default function GeneratePoster() {
   return (
     <div style={{ maxWidth: 720 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+
+        {creditsRemaining !== null && (
+          <div style={{ fontSize: 14, opacity: 0.8 }}>
+            Credits remaining: <strong>{creditsRemaining}</strong>
+          </div>
+        )}
+
         <input
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
