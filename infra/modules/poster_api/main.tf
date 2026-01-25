@@ -139,10 +139,11 @@ resource "aws_apigatewayv2_api" "api" {
   name          = "poster-api-${var.env}"
   protocol_type = "HTTP"
 
+#cors configuration
   cors_configuration {
-    allow_origins = ["*"]
-    allow_methods = ["GET", "OPTIONS"]
-    allow_headers = ["Content-Type", "Authorization"]
+  allow_origins = ["http://localhost:3000"]  # tighten later for prod
+  allow_methods = ["GET", "POST", "OPTIONS"]
+  allow_headers = ["Content-Type", "Authorization"]
   }
 }
 
@@ -175,7 +176,7 @@ resource "aws_cognito_user_pool_client" "client" {
   name         = "poster-client-${var.env}"
   user_pool_id = aws_cognito_user_pool.pool.id
 
-  # ✅ Valid ranges:
+  # Valid ranges:
   # - minutes: access/id token validity: 5..1440
   # - days: refresh token validity: 1..3650
   access_token_validity  = 60
@@ -223,6 +224,15 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
 resource "aws_apigatewayv2_route" "route" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET ${var.api_route_path}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+resource "aws_apigatewayv2_route" "route_post" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST ${var.api_route_path}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 
   authorization_type = "JWT"
