@@ -137,7 +137,23 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Effect   = "Allow",
         Action   = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutLogEvents"],
         Resource = "*"
-      }
+      },
+            # DynamoDB (credits + history)
+      {
+        Sid    = "DynamoDBCreditsHistory",
+        Effect = "Allow",
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:Query"
+        ],
+        Resource = [
+          aws_dynamodb_table.app.arn,
+          "${aws_dynamodb_table.app.arn}/index/*"
+        ]
+      },
+
     ]
   })
 }
