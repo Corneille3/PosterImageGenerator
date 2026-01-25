@@ -334,7 +334,7 @@ output "cognito_app_client_id" {
 }
 
 output "ddb_table_name" {
-  value = aws_dynamodb_table.id.name
+  value = aws_dynamodb_table.app.name
 }
 
 output "cognito_issuer" {
