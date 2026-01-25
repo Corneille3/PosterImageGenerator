@@ -183,6 +183,11 @@ resource "aws_lambda_function" "fn" {
       BEDROCK_REGION = var.bedrock_region
       S3_REGION      = var.region
       MODEL_ID       = var.model_id
+
+      DDB_TABLE_NAME    = aws_dynamodb_table.app.name
+      INITIAL_CREDITS   = tostring(var.initial_credits)
+      HISTORY_TTL_DAYS  = tostring(var.history_ttl_days)
+
     }
   }
 }
