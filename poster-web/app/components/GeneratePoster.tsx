@@ -9,6 +9,8 @@ export default function GeneratePoster() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
+
 
   const generate = async () => {
     setError(null);
