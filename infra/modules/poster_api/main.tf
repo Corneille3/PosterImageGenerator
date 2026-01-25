@@ -176,7 +176,7 @@ resource "aws_cognito_user_pool_client" "client" {
   name         = "poster-client-${var.env}"
   user_pool_id = aws_cognito_user_pool.pool.id
 
-  # ✅ Valid ranges:
+  # Valid ranges:
   # - minutes: access/id token validity: 5..1440
   # - days: refresh token validity: 1..3650
   access_token_validity  = 60

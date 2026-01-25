@@ -1,47 +1,61 @@
-import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export default withAuth({
-  pages: {
-    signIn: "/api/auth/signin",
-  },
-});
-
+type TokenWithGroups = {
+  groups?: string[];
+};
 
 export async function middleware(req: NextRequest) {
-  const token = await getToken({ req });
-  const { pathname } = req.nextUrl;
+  const { pathname, search } = req.nextUrl;
+  const callbackPath = `${pathname}${search ?? ""}`;
 
-  // 1) Require authentication for protected routes
-  const protectedPaths = ["/dashboard", "/generate", "/account", "/admin"];
-  const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
+  // Only run on matched routes, but we’ll keep explicit intent here too
+  const isDashboard = pathname.startsWith("/dashboard");
+  const isAdmin = pathname.startsWith("/admin");
+  const needsAuth = isDashboard || isAdmin;
 
-  if (isProtected && !token) {
-    const signInUrl = new URL("/api/auth/signin", req.url);
-    signInUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
-    return NextResponse.redirect(signInUrl);
+  // Read JWT from NextAuth cookie
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+  });
+
+  // Require login
+  if (needsAuth && !token) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/api/auth/signin";
+    url.searchParams.set("callbackUrl", callbackPath);
+    return NextResponse.redirect(url);
   }
 
-  // 2) Require admin group for /admin
-  if (pathname.startsWith("/admin")) {
-    const groups = (token?.groups as string[]) ?? [];
+  // Admin-only gate
+  if (isAdmin) {
+    const groups = (token as TokenWithGroups | null)?.groups ?? [];
     if (!groups.includes("admin")) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
+      // Pick ONE behavior:
+      // 1) Send to an Unauthorized page (clearer)
+      const url = req.nextUrl.clone();
+      url.pathname = "/unauthorized";
+      url.searchParams.set("from", callbackPath);
+      return NextResponse.redirect(url);
+
+      // 2) Or keep your original:
+      // return NextResponse.redirect(new URL("/dashboard", req.url));
+      // 3) Or return 403:
+      // return new NextResponse("Unauthorized", { status: 403 });
     }
   }
 
- //return NextResponse.next();
-  return NextResponse.redirect(new URL("/unauthorized", req.url));
-
+  return NextResponse.next();
 }
 
 export const config = {
-  // Protect only what you list here (recommended)
   matcher: [
-    "/generate/:path*",
     "/dashboard/:path*",
+    "/generate/:path*",
     "/account/:path*",
+    "/admin/:path*",
   ],
 };
+

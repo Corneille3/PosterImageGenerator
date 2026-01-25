@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "API_INVOKE_URL not set" }, { status: 500 });
   }
 
-  const upstream = await fetch(apiUrl, {
+  const upstream = await fetch(`${apiUrl}/moviePosterImageGenerator`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

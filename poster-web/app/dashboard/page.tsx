@@ -1,8 +1,10 @@
-export default function Dashboard() {
+import GeneratePoster from "../components/GeneratePoster";
+
+export default function DashboardPage() {
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Dashboard (Protected)</h1>
-      <p>If you can see this, middleware route protection works.</p>
+    <div className="p-6">
+      <h1 className="text-xl font-semibold mb-4">Dashboard</h1>
+      <GeneratePoster />
     </div>
   );
 }

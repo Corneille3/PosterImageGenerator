@@ -33,7 +33,14 @@ export default function GeneratePoster() {
         body: JSON.stringify({ prompt: trimmed }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const raw = await res.text();
+      let data: any = {};
+
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = { error: raw };
+      }
 
       if (!res.ok) {
         setError(data?.error || `Generation failed (${res.status}).`);
@@ -64,7 +71,11 @@ export default function GeneratePoster() {
           style={{ padding: 10 }}
         />
 
-        <button onClick={generate} disabled={loading} style={{ padding: 10 }}>
+        <button
+          onClick={generate}
+          disabled={loading || !prompt.trim()}
+          style={{ padding: 10 }}
+        >
           {loading ? "Generating..." : "Generate"}
         </button>
 

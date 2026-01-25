@@ -1,7 +1,17 @@
-import type { NextConfig } from "next";
+import NextAuth from "next-auth";
 
-const nextConfig: NextConfig = {
-  allowedDevOrigins: ["http://192.168.139.129:3000", "http://localhost:3000"],
-};
+declare module "next-auth" {
+  interface Session {
+    accessToken?: string;
+    idToken?: string;
+    groups?: string[];
+  }
+}
 
-export default nextConfig;
+declare module "next-auth/jwt" {
+  interface JWT {
+    accessToken?: string;
+    idToken?: string;
+    groups?: string[];
+  }
+}
