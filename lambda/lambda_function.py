@@ -322,4 +322,5 @@ def lambda_handler(event, context):
             status="FAILED",
             error_message=str(e),
         )
-        return _resp(502, {"error": "Generation failed", "details": str(e)})
+        return _resp(502, {"error": "Generation failed"})
+
