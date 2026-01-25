@@ -26,11 +26,23 @@ variable "key_prefix" { type = string }
 variable "lambda_src_dir" { type = string }
 variable "url_expires_seconds" { type = number }
 
-# Optional (if you want to customize)
+# This is Optional in case customization is needed.
 variable "api_route_path" {
   type    = string
   default = "/moviePosterImageGenerator"
 }
+
+#Add variables for credits/history
+variable "initial_credits" {
+  type    = number
+  default = 25
+}
+
+variable "history_ttl_days" {
+  type    = number
+  default = 30
+}
+
 
 # -------------------------
 # Provider
@@ -51,6 +63,33 @@ data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = var.lambda_src_dir
   output_path = "${path.module}/lambda_${var.env}.zip"
+}
+
+resource "aws_dynamodb_table" "app" {
+  name         = "poster-app-${var.env}"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "pk"
+  range_key    = "sk"
+
+  attribute {
+    name = "pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "sk"
+    type = "S"
+  }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
+
+  tags = {
+    Project = "PosterImageGenerator"
+    Env     = var.env
+  }
 }
 
 # -------------------------
