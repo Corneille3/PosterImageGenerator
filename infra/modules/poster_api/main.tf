@@ -299,6 +299,15 @@ resource "aws_apigatewayv2_route" "route_post" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+resource "aws_apigatewayv2_route" "route_history_get" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET ${var.api_route_path}/history"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 
 resource "aws_apigatewayv2_stage" "stage" {
   api_id      = aws_apigatewayv2_api.api.id

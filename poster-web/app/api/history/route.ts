@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // ✅ Read NextAuth JWT from cookies (no authOptions import)
     const token = await getToken({
       req,
       secret: process.env.NEXTAUTH_SECRET,
@@ -16,29 +15,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Body
-    let body: unknown = {};
-    try {
-      body = await req.json();
-    } catch {
-      body = {};
-    }
-
     const base = process.env.API_BASE_URL;
     if (!base) {
       return NextResponse.json({ error: "API_BASE_URL not set" }, { status: 500 });
     }
 
-    // ✅ Your backend route (API Gateway)
-    const url = new URL("/moviePosterImageGenerator", base);
+    // IMPORTANT: your AWS API is mounted at /moviePosterImageGenerator
+    // so history should be /moviePosterImageGenerator/history
+    const url = new URL("/moviePosterImageGenerator/history", base);
+
+    // forward query params
+    const incoming = new URL(req.url);
+    incoming.searchParams.forEach((v, k) => url.searchParams.set(k, v));
 
     const upstream = await fetch(url.toString(), {
-      method: "POST",
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify(body),
     });
 
     const text = await upstream.text();
@@ -50,14 +44,20 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: any) {
-    // ✅ Never generic Next 500 again; you’ll see the real error
     return NextResponse.json(
       {
-        error: "Generate route crashed",
+        error: "History route crashed",
         message: err?.message ?? String(err),
-        stack: err?.stack ?? null,
       },
       { status: 500 }
     );
   }
 }
+
+
+/*
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  return NextResponse.json({ ok: true, marker: "history-v2" });
+*/

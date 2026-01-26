@@ -3,6 +3,7 @@ import json
 import uuid
 import base64
 import boto3
+from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -34,7 +35,6 @@ ALLOWED_OUTPUT_FORMATS = {"png", "jpg", "jpeg"}
 
 
 def _headers():
-    # NOTE: For dev we can keep "*" but for prod you should lock to your domain(s)
     return {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
@@ -42,9 +42,25 @@ def _headers():
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     }
 
+def _json_safe(obj):
+    if isinstance(obj, Decimal):
+        # DynamoDB numbers come as Decimal. Convert to int if it's whole, else float.
+        if obj % 1 == 0:
+            return int(obj)
+        return float(obj)
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    return obj
+
 
 def _resp(code: int, payload: dict):
-    return {"statusCode": code, "headers": _headers(), "body": json.dumps(payload)}
+    return {
+        "statusCode": code,
+        "headers": _headers(),
+        "body": json.dumps(_json_safe(payload)),
+    }
 
 
 def _method(event: dict) -> str:
@@ -93,6 +109,11 @@ def _history_sk(ts_iso: str, req_id: str) -> str:
 def _ttl_epoch(days: int) -> int:
     dt = datetime.now(timezone.utc) + timedelta(days=days)
     return int(dt.timestamp())
+
+def _path(event: dict) -> str:
+    # HTTP API v2 gives rawPath; sometimes path
+    return (event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path") or "")
+
 
 
 def reserve_credit_or_fail(sub: str) -> int:
@@ -183,6 +204,52 @@ def write_history_best_effort(
     except Exception:
         return
 
+def get_history(sub: str, limit: int = 20, cursor: str | None = None):
+    if not table:
+        return {"items": [], "nextCursor": None}
+
+    limit = max(1, min(limit, 50))
+
+    eks = None
+    if cursor:
+        try:
+            eks = json.loads(base64.urlsafe_b64decode(cursor + "==").decode("utf-8"))
+        except Exception:
+            eks = None
+
+    params = {
+        "KeyConditionExpression": "pk = :pk AND begins_with(sk, :gen)",
+        "ExpressionAttributeValues": {
+            ":pk": _pk(sub),
+            ":gen": "GEN#",
+        },
+        "Limit": limit,
+        "ScanIndexForward": False,  # newest first
+    }
+    if eks:
+        params["ExclusiveStartKey"] = eks
+
+    resp = table.query(**params)
+    items = resp.get("Items", [])
+
+    # Optionally presign SUCCESS items (max limit=50; fine)
+    for it in items:
+        key = it.get("s3Key")
+        if key:
+            it["presigned_url"] = s3.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={"Bucket": BUCKET_NAME, "Key": key},
+                ExpiresIn=URL_EXPIRES_SECONDS,
+                HttpMethod="GET",
+            )
+
+    lek = resp.get("LastEvaluatedKey")
+    next_cursor = None
+    if lek:
+        next_cursor = base64.urlsafe_b64encode(json.dumps(lek).encode("utf-8")).decode("utf-8").rstrip("=")
+
+    return {"items": items, "nextCursor": next_cursor}
+
 
 def lambda_handler(event, context):
     event = event or {}
@@ -191,11 +258,23 @@ def lambda_handler(event, context):
     # CORS preflight (HTTP API v2)
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": _headers(), "body": json.dumps({"ok": True})}
-
+    
     # Identity (JWT authorizer must be enabled on the route)
     sub = _user_sub(event)
+
     if not sub:
         return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
+
+    path = _path(event) 
+    
+    # --- HISTORY ENDPOINT ---
+    if method == "GET" and path.endswith("/history"):
+        qsp = event.get("queryStringParameters") or {}
+        limit = int(qsp.get("limit") or 20)
+        cursor = qsp.get("cursor")
+        data = get_history(sub=sub, limit=limit, cursor=cursor)
+        return _resp(200, data)
+
 
     qsp = event.get("queryStringParameters") or {}
     body = _json_body(event)
