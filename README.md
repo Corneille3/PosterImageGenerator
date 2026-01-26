@@ -1,5 +1,15 @@
 🎨 AI Poster Generator — Full-Stack Serverless Application
 
+
+![AWS](https://img.shields.io/badge/AWS-Cloud-orange?logo=amazonaws&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-IaC-7B42BC?logo=terraform&logoColor=white)
+![Serverless](https://img.shields.io/badge/Serverless-Architecture-red?logo=serverless&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-App_Router-black?logo=next.js&logoColor=white)
+![Python](https://img.shields.io/badge/Python-Lambda-blue?logo=python&logoColor=white)
+![DynamoDB](https://img.shields.io/badge/DynamoDB-NoSQL-4053D6?logo=amazondynamodb&logoColor=white)
+![S3](https://img.shields.io/badge/S3-Object_Storage-569A31?logo=amazons3&logoColor=white)
+![Cognito](https://img.shields.io/badge/Auth-Cognito-FF9900?logo=amazonaws&logoColor=white)
+
 A production-oriented, full-stack AI image generation platform built with Next.js and AWS, featuring secure authentication, credit enforcement, generation history, and serverless scalability.
 
 This project demonstrates end-to-end system design, not just AI integration — from frontend UX to backend enforcement and cloud infrastructure.
