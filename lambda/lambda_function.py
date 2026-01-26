@@ -3,6 +3,7 @@ import json
 import uuid
 import base64
 import boto3
+from decimal import Decimal
 from datetime import datetime, timezone, timedelta
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -41,9 +42,25 @@ def _headers():
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     }
 
+def _json_safe(obj):
+    if isinstance(obj, Decimal):
+        # DynamoDB numbers come as Decimal. Convert to int if it's whole, else float.
+        if obj % 1 == 0:
+            return int(obj)
+        return float(obj)
+    if isinstance(obj, dict):
+        return {k: _json_safe(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_json_safe(v) for v in obj]
+    return obj
+
 
 def _resp(code: int, payload: dict):
-    return {"statusCode": code, "headers": _headers(), "body": json.dumps(payload)}
+    return {
+        "statusCode": code,
+        "headers": _headers(),
+        "body": json.dumps(_json_safe(payload)),
+    }
 
 
 def _method(event: dict) -> str:

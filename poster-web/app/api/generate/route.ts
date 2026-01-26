@@ -1,39 +1,48 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  let body: unknown = {};
+export async function POST(req: NextRequest) {
   try {
-    body = await req.json();
-  } catch {
-    body = {};
-  }
+    // ✅ Read NextAuth JWT from cookies (no authOptions import)
+    const token = await getToken({
+      req,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
 
-  const base = process.env.API_BASE_URL;
-  if (!base) {
-    return NextResponse.json({ error: "API_BASE_URL not set" }, { status: 500 });
-  }
+    const accessToken = (token as any)?.accessToken as string | undefined;
 
-  const url = new URL("/moviePosterImageGenerator", base);
+    if (!accessToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-  try {
+    // Body
+    let body: unknown = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
+
+    const base = process.env.API_BASE_URL;
+    if (!base) {
+      return NextResponse.json({ error: "API_BASE_URL not set" }, { status: 500 });
+    }
+
+    // ✅ Your backend route (API Gateway)
+    const url = new URL("/moviePosterImageGenerator", base);
+
     const upstream = await fetch(url.toString(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(body),
     });
 
     const text = await upstream.text();
+
     return new NextResponse(text, {
       status: upstream.status,
       headers: {
@@ -41,13 +50,14 @@ export async function POST(req: Request) {
       },
     });
   } catch (err: any) {
+    // ✅ Never generic Next 500 again; you’ll see the real error
     return NextResponse.json(
       {
-        error: "Upstream fetch failed",
+        error: "Generate route crashed",
         message: err?.message ?? String(err),
-        url: url.toString(),
+        stack: err?.stack ?? null,
       },
-      { status: 502 }
+      { status: 500 }
     );
   }
 }
