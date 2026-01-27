@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 type HistoryItem = {
@@ -20,6 +20,169 @@ type HistoryResponse = {
   nextCursor?: string | null;
 };
 
+function formatDate(input?: string) {
+  if (!input) return "";
+  // If backend already returns ISO-ish strings, this will look good.
+  const d = new Date(input);
+  if (Number.isNaN(d.getTime())) return input; // fallback: show raw
+  return d.toLocaleString();
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const normalized = (status || "").toUpperCase();
+  if (normalized === "SUCCESS") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-success/30 bg-success/15 px-2 py-1 text-xs text-success">
+        SUCCESS
+      </span>
+    );
+  }
+  if (normalized === "FAILED") {
+    return (
+      <span className="inline-flex items-center rounded-full border border-danger/30 bg-danger/15 px-2 py-1 text-xs text-danger">
+        FAILED
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-full border border-border bg-surface2 px-2 py-1 text-xs text-muted">
+      {normalized || "UNKNOWN"}
+    </span>
+  );
+}
+
+function HistorySkeleton() {
+  return (
+    <div className="rounded-2xl border border-border bg-surface shadow-soft">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <div className="h-4 w-56 animate-pulse rounded bg-surface2" />
+            <div className="h-3 w-40 animate-pulse rounded bg-surface2" />
+          </div>
+          <div className="h-6 w-20 animate-pulse rounded-full bg-surface2" />
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="h-10 animate-pulse rounded-xl bg-surface2" />
+          <div className="h-10 animate-pulse rounded-xl bg-surface2" />
+          <div className="h-10 animate-pulse rounded-xl bg-surface2" />
+        </div>
+
+        <div className="mt-4 h-48 animate-pulse rounded-xl bg-surface2" />
+      </div>
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-6 text-center shadow-soft">
+      <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/15 text-accent">
+        {/* simple spark icon */}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M12 2l1.2 6.2L19 9.4l-5.8 1.2L12 17l-1.2-6.4L5 9.4l5.8-1.2L12 2z"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </div>
+      <h2 className="text-base font-semibold text-text">No generations yet</h2>
+      <p className="mt-1 text-sm text-muted">
+        Generate your first poster from the dashboard and it will show up here.
+      </p>
+      <div className="mt-4">
+        <Link
+          href="/dashboard"
+          className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent2"
+        >
+          Go to Dashboard
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function HistoryItemCard({ it }: { it: HistoryItem }) {
+  const hasImage = Boolean(it.presigned_url);
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className="rounded-2xl border border-border bg-surface shadow-soft">
+      <div className="p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <StatusBadge status={it.status} />
+              {it.createdAt ? (
+                <span className="text-xs text-muted">{formatDate(it.createdAt)}</span>
+              ) : null}
+            </div>
+
+            <div className="mt-2 line-clamp-3 text-sm font-medium text-text">
+              {it.prompt || "(no prompt)"}
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+              {it.aspect_ratio ? (
+                <span className="rounded-full border border-border bg-surface2 px-2 py-1">
+                  {it.aspect_ratio}
+                </span>
+              ) : null}
+              {it.output_format ? (
+                <span className="rounded-full border border-border bg-surface2 px-2 py-1">
+                  {it.output_format}
+                </span>
+              ) : null}
+            </div>
+
+            {it.status !== "SUCCESS" && it.errorMessage ? (
+              <div className="mt-3 rounded-xl border border-danger/25 bg-danger/10 p-3 text-sm text-text">
+                <div className="text-xs font-semibold text-danger">Error</div>
+                <div className="mt-1 text-sm text-muted">{it.errorMessage}</div>
+              </div>
+            ) : null}
+          </div>
+
+          {/* Actions */}
+          <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+            {hasImage ? (
+              <a
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                href={it.presigned_url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open
+              </a>
+            ) : null}
+          </div>
+        </div>
+
+        {hasImage ? (
+          <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={it.presigned_url}
+              alt="generated"
+              loading="lazy"
+              className={[
+                "h-auto w-full object-cover",
+                "transition duration-500 ease-out",
+                loaded ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]",
+              ].join(" ")}
+              onLoad={() => setLoaded(true)}
+            />
+
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +190,8 @@ export default function HistoryPage() {
 
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  const canLoadMore = useMemo(() => Boolean(nextCursor) && !loading && !error, [nextCursor, loading, error]);
 
   async function load(first = false) {
     try {
@@ -74,75 +239,75 @@ export default function HistoryPage() {
   }, []);
 
   return (
-    <div className="min-h-screen p-6">
-      <div className="max-w-3xl mx-auto space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">History</h1>
-          <Link className="text-sm underline" href="/dashboard">
-            Back to Dashboard
-          </Link>
+    <div className="min-h-screen bg-bg">
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        {/* Header */}
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-text">History</h1>
+            <p className="mt-1 text-sm text-muted">
+              Review past generations, open images, and reuse prompts.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+            >
+              Back to Dashboard
+            </Link>
+          </div>
         </div>
 
-        {loading && <div className="p-4 border rounded">Loading…</div>}
+        {/* Error */}
+        {error ? (
+          <div className="mb-6 rounded-2xl border border-danger/25 bg-danger/10 p-4 shadow-soft">
+            <div className="text-sm font-semibold text-text">Error</div>
+            <div className="mt-1 text-sm text-muted">{error}</div>
+            <button
+              className="mt-3 inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent2"
+              onClick={() => load(true)}
+            >
+              Retry
+            </button>
+          </div>
+        ) : null}
 
-        {error && (
-          <div className="p-4 border rounded">
-            <div className="font-semibold">Error</div>
-            <div className="text-sm opacity-80">{error}</div>
+        {/* Loading / Empty / List */}
+        {loading ? (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <HistorySkeleton />
+            <HistorySkeleton />
+          </div>
+        ) : !error && items.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2">
+            {items.map((it) => (
+              <HistoryItemCard key={it.sk} it={it} />
+            ))}
           </div>
         )}
 
-        {!loading && !error && items.length === 0 && (
-          <div className="p-4 border rounded">No history yet.</div>
-        )}
-
-        <div className="space-y-3">
-          {items.map((it) => (
-            <div key={it.sk} className="border rounded p-4 space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <div className="font-medium">{it.prompt || "(no prompt)"}</div>
-                <div className="text-xs opacity-70">{it.createdAt || ""}</div>
-              </div>
-
-              <div className="text-sm opacity-80">
-                <span className="font-medium">Status:</span> {it.status}
-                {it.aspect_ratio ? <> · {it.aspect_ratio}</> : null}
-                {it.output_format ? <> · {it.output_format}</> : null}
-              </div>
-
-              {it.status !== "SUCCESS" && it.errorMessage && (
-                <div className="text-sm">
-                  <span className="font-medium">Error:</span> {it.errorMessage}
-                </div>
-              )}
-
-              {it.presigned_url && (
-                <div className="space-y-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={it.presigned_url}
-                    alt="generated"
-                    className="max-w-full rounded border"
-                  />
-                  <a className="text-sm underline" href={it.presigned_url} target="_blank" rel="noreferrer">
-                    Open image
-                  </a>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {nextCursor && !loading && !error && (
-          <button
-            className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-            onClick={() => load(false)}
-            disabled={loadingMore}
-          >
-            {loadingMore ? "Loading…" : "Load more"}
-          </button>
-        )}
+        {/* Load more */}
+        {canLoadMore ? (
+          <div className="mt-6 flex justify-center">
+            <button
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+              onClick={() => load(false)}
+              disabled={loadingMore}
+            >
+              {loadingMore ? "Loading…" : "Load more"}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
+
+
+<div className="bg-[rgb(var(--accent))] text-white p-6 rounded-xl">
+  If this is violet, CSS vars work
+</div>
