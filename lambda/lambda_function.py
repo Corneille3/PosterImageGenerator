@@ -4,6 +4,7 @@ import uuid
 import base64
 import boto3
 from decimal import Decimal
+from boto3.dynamodb.conditions import Key, Attr
 from datetime import datetime, timezone, timedelta
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -252,7 +253,9 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
         "ExpressionAttributeValues": {
             ":pk": _pk(sub),
             ":gen": "GEN#",
+            ":false": False,
         },
+        "FilterExpression": "attribute_not_exists(deleted) OR deleted = :false",
         "Limit": limit,
         "ScanIndexForward": False,
     }
@@ -282,6 +285,40 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
         )
 
     return {"items": items, "nextCursor": next_cursor}
+
+    # handle_delete_history(...)
+
+def handle_delete_history(event):
+    if not table:
+        return _resp(500, {"error": "DynamoDB table not configured"})
+
+    sub = _user_sub(event)
+    if not sub:
+        return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
+
+    body = _json_body(event)
+    sk = body.get("sk")
+
+    if not sk or not isinstance(sk, str):
+        return _resp(400, {"error": "Missing or invalid 'sk'."})
+
+    if not sk.startswith("GEN#"):
+        return _resp(400, {"error": "Invalid 'sk' format."})
+
+    try:
+        table.update_item(
+            Key={"pk": _pk(sub), "sk": sk},
+            UpdateExpression="SET deleted = :d",
+            ExpressionAttributeValues={":d": True},
+            ConditionExpression="attribute_exists(sk)",
+        )
+        return {"statusCode": 204, "headers": _headers(), "body": ""}
+
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code == "ConditionalCheckFailedException":
+            return _resp(404, {"error": "History item not found."})
+        return _resp(500, {"error": "Failed to delete history item."})
 
 
 def lambda_handler(event, context):
@@ -432,37 +469,4 @@ def lambda_handler(event, context):
         )
         return _resp(502, {"error": "Generation failed"})
 
-    # handle_delete_history(...)
-    
-def handle_delete_history(event, table):
-    claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
-    sub = claims["sub"]
-    pk = f"USER#{sub}"
-
-    payload = _read_json_body(event)
-    sk = payload.get("sk")
-
-    if not sk or not isinstance(sk, str):
-        return _json_response(400, {"message": "Missing or invalid 'sk'."})
-
-    if not sk.startswith("GEN#"):
-        return _json_response(400, {"message": "Invalid 'sk' format."})
-
-    try:
-        table.update_item(
-            Key={"pk": pk, "sk": sk},
-            UpdateExpression="SET deleted = :d",
-            ExpressionAttributeValues={":d": True},
-            # prevents “creating” a deleted item if sk is wrong
-            ConditionExpression="attribute_exists(sk)",
-        )
-        # 204 No Content
-        return {"statusCode": 204, "headers": {"Access-Control-Allow-Origin": "*"}, "body": ""}
-
-    except ClientError as e:
-        code = e.response.get("Error", {}).get("Code", "")
-        if code == "ConditionalCheckFailedException":
-            # Don't leak whether it belongs to another user; for wrong user it will also be "not found"
-            return _json_response(404, {"message": "History item not found."})
-        # unexpected error
-        return _json_response(500, {"message": "Failed to delete history item."})
+  
