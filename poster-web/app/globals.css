@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ================================
+   Cinematic Dark + Violet Theme
+   Tailwind v4 CSS-first tokens
+   ================================ */
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+
+:root {
+  --bg: 10 12 18;
+  --surface: 15 18 28;
+  --surface2: 18 22 34;
+  --border: 35 41 58;
+
+  --text: 226 232 240;
+  --muted: 148 163 184;
+
+  --accent: 168 85 247;
+  --accent-2: 192 132 252;
+
+  --success: 74 222 128;
+  --danger: 248 113 113;
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Tell Tailwind v4 what tokens exist → generates bg-accent, text-muted, etc */
+@theme inline {
+  --color-bg: rgb(var(--bg));
+  --color-surface: rgb(var(--surface));
+  --color-surface2: rgb(var(--surface2));
+  --color-border: rgb(var(--border));
+
+  --color-text: rgb(var(--text));
+  --color-muted: rgb(var(--muted));
+
+  --color-accent: rgb(var(--accent));
+  --color-accent2: rgb(var(--accent-2));
+
+  --color-success: rgb(var(--success));
+  --color-danger: rgb(var(--danger));
+
+  --shadow-soft: 0 10px 30px rgba(0,0,0,0.35);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  scroll-padding-top: 6rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: rgb(var(--bg));
+  color: rgb(var(--text));
+  font-family: var(--font-sans), system-ui, sans-serif;
 }

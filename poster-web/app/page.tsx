@@ -1,61 +1,165 @@
-"use client";
-
-import { signIn, signOut, useSession } from "next-auth/react";
 import Link from "next/link";
+import HeroVisual from "./components/HeroVisual";
+import RecentShowcase from "./components/RecentShowcase";
+import LandingCTA from "./components/LandingCTA";
 
-export default function Home() {
-  const { data: session, status } = useSession();
-
+export default function HomePage() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="max-w-xl w-full p-8 border rounded-xl space-y-4">
-        <h1 className="text-2xl font-semibold">Poster Generator</h1>
+    <div className="py-10">
+      {/* HERO */}
+      <section className="relative overflow-hidden rounded-3xl border border-border bg-surface/60 p-8 sm:p-10">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2/60 px-3 py-1 text-xs text-muted">
+              <span className="h-2 w-2 rounded-full bg-[rgba(61,255,154,1)] shadow-[0_0_25px_rgba(61,255,154,0.35)]" />
+              Bedrock-powered • Credits • History
+            </div>
 
-        {status === "authenticated" ? (
-          <>
-            <p>Signed in ✅</p>
+            <h1 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-text">
+              Generate stunning AI movie posters
+            </h1>
 
-            {/* Show groups for visibility/debug */}
-            <p className="text-sm text-gray-600">
-              Groups: {session?.groups?.join(", ") || "(none)"}
+            <p className="mt-3 max-w-xl text-muted">
+              Create cinematic visuals in seconds. Pick a style, refine your
+              prompt, and generate. Every poster is saved to your history.
             </p>
 
-            {/* Admin link only for admin users */}
-            {session?.groups?.includes("admin") && (
+            <div className="mt-6 flex flex-wrap gap-3">
+              <LandingCTA />
+
               <Link
-                href="/admin"
-                className="block text-blue-600 underline"
+                href="/history"
+                className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
               >
-                Go to Admin
+                View history
               </Link>
-            )}
+            </div>
+          </div>
 
-            <Link
-              href="/dashboard"
-              className="block text-blue-600 underline"
-            >
-              Go to Dashboard
-            </Link>
+          <HeroVisual />
+        </div>
+      </section>
 
-            <button
-              className="px-4 py-2 rounded bg-black text-white"
-              onClick={() => signOut()}
+      {/* SHOWCASE */}
+      <section id="showcase" className="mt-12 scroll-mt-24">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-text">Showcase</h2>
+            <p className="mt-1 text-sm text-muted">
+              A few recent generations from your account.
+            </p>
+          </div>
+
+          <Link
+            href="/history"
+            className="text-sm text-muted hover:text-text transition-colors"
+          >
+            View history →
+          </Link>
+        </div>
+
+        <div className="mt-5">
+          <RecentShowcase />
+        </div>
+      </section>
+
+      {/* FEATURES */}
+      <section id="features" className="mt-14 scroll-mt-24">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold tracking-tight text-text">
+            Key Features
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Everything you need to create high-quality AI-generated movie posters
+            in one place.
+          </p>
+        </div>
+
+        <div className="grid gap-8 sm:grid-cols-3">
+          {[
+            {
+              title: "Preset Styles",
+              desc:
+                "Not inspired? We got you! Choose from Cinematic, Noir, Horror, Animation and more — each style guides lighting, mood, and composition. Everything you need in one place.",
+            },
+            {
+              title: "High Quality",
+              desc:
+                "Every image is produced at a resolution suitable for digital and print-ready use. Perfect for posters, social media content, branding visuals, storyboards, and more.",
+            },
+            {
+              title: "History",
+              desc:
+                "Every generation is automatically saved with prompt and status, making it easy to review, reopen, and reuse past creations.",
+            },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="rounded-2xl border border-border bg-[rgba(61,255,154,0.12)] p-6 text-center"
             >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <>
-            <p>Not signed in ❌</p>
-            <button
-              className="px-4 py-2 rounded bg-black text-white"
-              onClick={() => signIn("cognito")}
+              <div className="text-sm font-semibold text-text">{f.title}</div>
+              <div className="mt-2 text-sm text-muted">{f.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section id="how-it-works" className="mt-14 scroll-mt-24">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold tracking-tight text-text">
+            How to get the best out of the generator
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Follow these simple steps to guide the AI and generate
+            cinematic-quality posters.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              title: "1. Enter Prompt",
+              desc:
+                "Describe the scene, characters, mood, lighting, and genre. The more specific you are, the better the result.",
+            },
+            {
+              title: "2. Choose Style",
+              desc:
+                "Select a preset style to guide the visual direction. You can change or clear it at any time.",
+            },
+            {
+              title: "3. Generate Poster",
+              desc:
+                "We generate via Bedrock, store the image in S3, and display it instantly. Credits are deducted and the result is saved to history.",
+            },
+          ].map((s) => (
+            <div
+              key={s.title}
+              className="rounded-2xl border border-border bg-[rgba(122,92,255,0.16)] p-6 text-center"
             >
-              Sign in with Cognito
-            </button>
-          </>
-        )}
-      </div>
+              <div className="text-sm font-semibold text-text">{s.title}</div>
+              <div className="mt-2 text-sm text-muted">{s.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="mt-14">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-[rgba(61,255,154,0.10)] p-10 text-center">
+          <h2 className="text-2xl font-semibold text-text">
+            Start generating realistic images
+          </h2>
+          <p className="mt-2 text-muted">
+            Sign in, craft your prompt, pick a style, and generate your poster.
+          </p>
+
+          <div className="mt-6 flex justify-center">
+            <LandingCTA variant="large" />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

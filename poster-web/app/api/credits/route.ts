@@ -6,33 +6,15 @@ export async function GET(req: NextRequest) {
   try {
     const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "";
 
-    const token = await getToken({
-      req,
-      secret,
-    });
-
+    const token = await getToken({ req, secret });
     if (!token) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-          message:
-            "Session token not found. If this persists, check NEXTAUTH_SECRET/AUTH_SECRET and sign in again.",
-        },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized (no token)" }, { status: 401 });
     }
 
-    // Accept either (your NextAuth config sets both)
     const bearer = (token as any).accessToken || (token as any).idToken;
-
     if (!bearer) {
       return NextResponse.json(
-        {
-          error: "Unauthorized",
-          message:
-            "JWT exists but no accessToken/idToken found. This usually means the jwt callback did not persist tokens.",
-          tokenKeys: Object.keys(token as any),
-        },
+        { error: "Unauthorized (no bearer token)", tokenKeys: Object.keys(token as any) },
         { status: 401 }
       );
     }
@@ -42,18 +24,28 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "API_BASE_URL not set" }, { status: 500 });
     }
 
-    // ✅ Calls the same backend route, but with GET (credits endpoint)
     const url = new URL("/moviePosterImageGenerator", base);
 
     const upstream = await fetch(url.toString(), {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${bearer}`,
-      },
+      headers: { Authorization: `Bearer ${bearer}` },
     });
 
     const text = await upstream.text();
 
+    // ✅ If upstream fails, surface it so we KNOW why it's 400
+    if (!upstream.ok) {
+      return NextResponse.json(
+        {
+          error: "Upstream error from API Gateway/Lambda",
+          upstreamStatus: upstream.status,
+          upstreamBody: text,
+        },
+        { status: upstream.status }
+      );
+    }
+
+    // Normal success passthrough
     return new NextResponse(text, {
       status: upstream.status,
       headers: {
@@ -62,11 +54,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     return NextResponse.json(
-      {
-        error: "Credits route crashed",
-        message: err?.message ?? String(err),
-        stack: err?.stack ?? null,
-      },
+      { error: "Credits route crashed", message: err?.message ?? String(err) },
       { status: 500 }
     );
   }
