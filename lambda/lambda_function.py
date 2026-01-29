@@ -431,3 +431,38 @@ def lambda_handler(event, context):
             error_message=str(e),
         )
         return _resp(502, {"error": "Generation failed"})
+
+    # handle_delete_history(...)
+    
+def handle_delete_history(event, table):
+    claims = event["requestContext"]["authorizer"]["jwt"]["claims"]
+    sub = claims["sub"]
+    pk = f"USER#{sub}"
+
+    payload = _read_json_body(event)
+    sk = payload.get("sk")
+
+    if not sk or not isinstance(sk, str):
+        return _json_response(400, {"message": "Missing or invalid 'sk'."})
+
+    if not sk.startswith("GEN#"):
+        return _json_response(400, {"message": "Invalid 'sk' format."})
+
+    try:
+        table.update_item(
+            Key={"pk": pk, "sk": sk},
+            UpdateExpression="SET deleted = :d",
+            ExpressionAttributeValues={":d": True},
+            # prevents “creating” a deleted item if sk is wrong
+            ConditionExpression="attribute_exists(sk)",
+        )
+        # 204 No Content
+        return {"statusCode": 204, "headers": {"Access-Control-Allow-Origin": "*"}, "body": ""}
+
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code == "ConditionalCheckFailedException":
+            # Don't leak whether it belongs to another user; for wrong user it will also be "not found"
+            return _json_response(404, {"message": "History item not found."})
+        # unexpected error
+        return _json_response(500, {"message": "Failed to delete history item."})
