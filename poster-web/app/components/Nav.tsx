@@ -4,6 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 
+function cx(...classes: Array<string | false | undefined | null>) {
+  return classes.filter(Boolean).join(" ");
+}
+
 function NavLink({
   href,
   children,
@@ -12,17 +16,18 @@ function NavLink({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const active = pathname === href;
+  const active =
+    href === "/"
+      ? pathname === "/"
+      : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link
       href={href}
-      className={[
-        "rounded-xl px-3 py-2 text-sm transition-colors",
-        active
-          ? "bg-accent/15 text-text border border-accent/25"
-          : "text-muted hover:text-text hover:bg-surface2 border border-transparent",
-      ].join(" ")}
+      className={cx(
+        "text-sm transition-colors",
+        active ? "text-text" : "text-muted hover:text-text"
+      )}
     >
       {children}
     </Link>
@@ -30,49 +35,78 @@ function NavLink({
 }
 
 export default function Nav() {
-  const { data: session, status } = useSession();
-  const isAdmin = session?.groups?.includes("admin");
+  const { status } = useSession();
 
   return (
-    <nav className="sticky top-0 z-40 w-full border-b border-border bg-bg/80 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3">
+    <header className="sticky top-0 z-50 border-b border-border bg-[rgba(15,18,32,0.95)] backdrop-blur">
+      <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
         {/* Brand */}
-        <Link href="/" className="group mr-1 flex items-center gap-2">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-accent/15 text-accent">
-            {/* simple icon */}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M4 7h16M4 12h16M4 17h16"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-              />
-            </svg>
+        <Link href="/" className="flex items-center gap-3">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-2xl border border-border bg-surface2">
+            <span className="h-2.5 w-2.5 rounded-full bg-[rgba(61,255,154,1)] shadow-[0_0_26px_rgba(61,255,154,0.45)]" />
           </span>
-          <span className="text-sm font-semibold tracking-tight text-text group-hover:text-accent2 transition-colors">
+          <span className="text-sm font-semibold text-text">
             Poster Generator
           </span>
         </Link>
 
-        {/* Links */}
-        <div className="ml-2 flex items-center gap-1">
+        {/* Nav links */}
+        <nav className="hidden md:flex items-center gap-6">
+          <NavLink href="/">Home</NavLink>
           <NavLink href="/dashboard">Dashboard</NavLink>
           <NavLink href="/history">History</NavLink>
-          {isAdmin ? <NavLink href="/admin">Admin</NavLink> : null}
-        </div>
+
+          {/* Landing sections */}
+          <Link
+            href="/#showcase"
+            className="text-sm text-muted hover:text-text transition-colors"
+          >
+            Showcase
+          </Link>
+          <Link
+            href="/#features"
+            className="text-sm text-muted hover:text-text transition-colors"
+          >
+            Features
+          </Link>
+          <Link
+            href="/#how-it-works"
+            className="text-sm text-muted hover:text-text transition-colors"
+          >
+            How it works
+          </Link>
+        </nav>
 
         {/* Right side */}
-        <div className="ml-auto flex items-center gap-2">
-          {status === "authenticated" ? (
+        <div className="flex items-center gap-3">
+          <Link
+            href="/dashboard#generator"
+            className="hidden sm:inline-flex rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent2 transition-colors
+                       shadow-[0_0_34px_rgba(122,92,255,0.18)]
+                       hover:-translate-y-0.5 hover:shadow-[0_18px_60px_rgba(122,92,255,0.18)] active:translate-y-0"
+          >
+            Open App
+          </Link>
+
+          {status !== "authenticated" ? (
+            <Link
+              href="/api/auth/signin"
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 transition-colors
+                         hover:-translate-y-0.5 active:translate-y-0"
+            >
+              Sign in
+            </Link>
+          ) : (
             <button
-              className="rounded-xl border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-text hover:bg-danger/15 transition-colors"
+              className="rounded-xl border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-text hover:bg-danger/15 transition-colors
+                         hover:-translate-y-0.5 active:translate-y-0"
               onClick={() => signOut()}
             >
               Sign out
             </button>
-          ) : null}
+          )}
         </div>
       </div>
-    </nav>
+    </header>
   );
 }

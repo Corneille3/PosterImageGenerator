@@ -42,9 +42,9 @@ def _headers():
         "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     }
 
+
 def _json_safe(obj):
     if isinstance(obj, Decimal):
-        # DynamoDB numbers come as Decimal. Convert to int if it's whole, else float.
         if obj % 1 == 0:
             return int(obj)
         return float(obj)
@@ -64,7 +64,6 @@ def _resp(code: int, payload: dict):
 
 
 def _method(event: dict) -> str:
-    # HTTP API v2 payload
     return (event.get("requestContext", {}).get("http", {}).get("method") or "").upper()
 
 
@@ -81,7 +80,6 @@ def _json_body(event: dict) -> dict:
 
 
 def get_claims(event: dict) -> dict:
-    # HTTP API JWT authorizer claims live here (payload v2)
     auth = event.get("requestContext", {}).get("authorizer", {})
     jwt = auth.get("jwt", {})
     return jwt.get("claims", {}) or {}
@@ -89,9 +87,7 @@ def get_claims(event: dict) -> dict:
 
 def _user_sub(event: dict) -> str | None:
     claims = get_claims(event)
-    # Access token typically includes "sub"
-    sub = claims.get("sub")
-    return sub
+    return claims.get("sub")
 
 
 def _pk(sub: str) -> str:
@@ -110,10 +106,27 @@ def _ttl_epoch(days: int) -> int:
     dt = datetime.now(timezone.utc) + timedelta(days=days)
     return int(dt.timestamp())
 
+
 def _path(event: dict) -> str:
-    # HTTP API v2 gives rawPath; sometimes path
     return (event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path") or "")
 
+
+def get_credits(sub: str) -> int:
+    """
+    Read credits without modifying them.
+    If credits item doesn't exist yet, return INITIAL_CREDITS to match lazy-init behavior.
+    """
+    if not table:
+        return 0
+
+    resp = table.get_item(Key=_credits_key(sub))
+    item = resp.get("Item") or {}
+
+    credits = item.get("credits")
+    if credits is None:
+        return int(INITIAL_CREDITS)
+
+    return int(credits)
 
 
 def reserve_credit_or_fail(sub: str) -> int:
@@ -125,7 +138,6 @@ def reserve_credit_or_fail(sub: str) -> int:
     Returns remaining credits AFTER decrement.
     """
     if not table:
-        # If Dynamo isn't configured yet, allow generation (or you can fail).
         return -1
 
     try:
@@ -141,17 +153,14 @@ def reserve_credit_or_fail(sub: str) -> int:
             },
             ReturnValues="UPDATED_NEW",
         )
-        remaining = int(resp["Attributes"]["credits"])
-        return remaining
+        return int(resp["Attributes"]["credits"])
     except ClientError as e:
         if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
-            # Out of credits
             raise ValueError("OUT_OF_CREDITS")
         raise
 
 
 def refund_credit_best_effort(sub: str):
-    """Best-effort refund (+1) if generation fails after reserving a credit."""
     if not table:
         return
     try:
@@ -165,7 +174,6 @@ def refund_credit_best_effort(sub: str):
             ConditionExpression="attribute_exists(credits)",
         )
     except Exception:
-        # swallow refund errors (best effort)
         return
 
 
@@ -182,6 +190,7 @@ def write_history_best_effort(
 ):
     if not table:
         return
+
     item = {
         "pk": _pk(sub),
         "sk": _history_sk(ts_iso, req_id),
@@ -204,6 +213,7 @@ def write_history_best_effort(
     except Exception:
         return
 
+
 def get_history(sub: str, limit: int = 20, cursor: str | None = None):
     if not table:
         return {"items": [], "nextCursor": None}
@@ -224,7 +234,7 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
             ":gen": "GEN#",
         },
         "Limit": limit,
-        "ScanIndexForward": False,  # newest first
+        "ScanIndexForward": False,
     }
     if eks:
         params["ExclusiveStartKey"] = eks
@@ -232,7 +242,6 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
     resp = table.query(**params)
     items = resp.get("Items", [])
 
-    # Optionally presign SUCCESS items (max limit=50; fine)
     for it in items:
         key = it.get("s3Key")
         if key:
@@ -246,7 +255,11 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
     lek = resp.get("LastEvaluatedKey")
     next_cursor = None
     if lek:
-        next_cursor = base64.urlsafe_b64encode(json.dumps(lek).encode("utf-8")).decode("utf-8").rstrip("=")
+        next_cursor = (
+            base64.urlsafe_b64encode(json.dumps(lek).encode("utf-8"))
+            .decode("utf-8")
+            .rstrip("=")
+        )
 
     return {"items": items, "nextCursor": next_cursor}
 
@@ -258,15 +271,14 @@ def lambda_handler(event, context):
     # CORS preflight (HTTP API v2)
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": _headers(), "body": json.dumps({"ok": True})}
-    
+
     # Identity (JWT authorizer must be enabled on the route)
     sub = _user_sub(event)
-
     if not sub:
         return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
 
-    path = _path(event) 
-    
+    path = _path(event)
+
     # --- HISTORY ENDPOINT ---
     if method == "GET" and path.endswith("/history"):
         qsp = event.get("queryStringParameters") or {}
@@ -275,11 +287,16 @@ def lambda_handler(event, context):
         data = get_history(sub=sub, limit=limit, cursor=cursor)
         return _resp(200, data)
 
+    # --- CREDITS ENDPOINT ---
+    # GET /moviePosterImageGenerator -> return current credits (no prompt needed)
+    if method == "GET":
+        credits = get_credits(sub)
+        return _resp(200, {"credits": credits})
 
+    # Everything below here is generation
     qsp = event.get("queryStringParameters") or {}
     body = _json_body(event)
 
-    # Accept POST JSON body or GET query string
     prompt = (body.get("prompt") or qsp.get("prompt") or "").strip()
     if not prompt:
         return _resp(400, {"error": "Missing required parameter: prompt"})
@@ -296,11 +313,9 @@ def lambda_handler(event, context):
     if output_format not in ALLOWED_OUTPUT_FORMATS:
         return _resp(400, {"error": f"Invalid output_format. Allowed: {sorted(ALLOWED_OUTPUT_FORMATS)}"})
 
-    # Request IDs / timestamps for history
     ts_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     req_id = uuid.uuid4().hex
 
-    # Reserve a credit (atomic). Refund on failure later (best effort).
     try:
         remaining = reserve_credit_or_fail(sub)
     except ValueError as e:
@@ -337,7 +352,6 @@ def lambda_handler(event, context):
 
         data = json.loads(br["body"].read())
 
-        # Extract base64
         if "images" in data and data["images"]:
             image_b64 = data["images"][0]
         elif "artifacts" in data and data["artifacts"]:
@@ -347,12 +361,10 @@ def lambda_handler(event, context):
 
         image_bytes = base64.b64decode(image_b64)
 
-        # S3 key
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         prefix = KEY_PREFIX if KEY_PREFIX.endswith("/") else f"{KEY_PREFIX}/"
         key = f"{prefix}{ts}-{req_id}.{output_format}"
 
-        # Upload
         content_type = "image/png" if output_format == "png" else "image/jpeg"
         s3.put_object(
             Bucket=BUCKET_NAME,
@@ -361,7 +373,6 @@ def lambda_handler(event, context):
             ContentType=content_type,
         )
 
-        # Pre-signed URL
         presigned_url = s3.generate_presigned_url(
             ClientMethod="get_object",
             Params={"Bucket": BUCKET_NAME, "Key": key},
@@ -369,7 +380,6 @@ def lambda_handler(event, context):
             HttpMethod="GET",
         )
 
-        # History success
         write_history_best_effort(
             sub=sub,
             ts_iso=ts_iso,
@@ -388,7 +398,6 @@ def lambda_handler(event, context):
         return _resp(200, payload)
 
     except Exception as e:
-        # Refund reserved credit if generation fails
         refund_credit_best_effort(sub)
 
         write_history_best_effort(
@@ -402,4 +411,3 @@ def lambda_handler(event, context):
             error_message=str(e),
         )
         return _resp(502, {"error": "Generation failed"})
-

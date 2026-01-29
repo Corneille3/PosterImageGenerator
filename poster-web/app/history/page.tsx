@@ -22,9 +22,8 @@ type HistoryResponse = {
 
 function formatDate(input?: string) {
   if (!input) return "";
-  // If backend already returns ISO-ish strings, this will look good.
   const d = new Date(input);
-  if (Number.isNaN(d.getTime())) return input; // fallback: show raw
+  if (Number.isNaN(d.getTime())) return input;
   return d.toLocaleString();
 }
 
@@ -79,7 +78,6 @@ function EmptyState() {
   return (
     <div className="rounded-2xl border border-border bg-surface p-6 text-center shadow-soft">
       <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-2xl bg-accent/15 text-accent">
-        {/* simple spark icon */}
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
           <path
             d="M12 2l1.2 6.2L19 9.4l-5.8 1.2L12 17l-1.2-6.4L5 9.4l5.8-1.2L12 2z"
@@ -110,14 +108,16 @@ function HistoryItemCard({ it }: { it: HistoryItem }) {
   const [loaded, setLoaded] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-border bg-surface shadow-soft">
+    <div className="rounded-2xl border border-border bg-surface shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
       <div className="p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <StatusBadge status={it.status} />
               {it.createdAt ? (
-                <span className="text-xs text-muted">{formatDate(it.createdAt)}</span>
+                <span className="text-xs text-muted">
+                  {formatDate(it.createdAt)}
+                </span>
               ) : null}
             </div>
 
@@ -146,7 +146,6 @@ function HistoryItemCard({ it }: { it: HistoryItem }) {
             ) : null}
           </div>
 
-          {/* Actions */}
           <div className="flex shrink-0 items-center gap-2 sm:justify-end">
             {hasImage ? (
               <a
@@ -155,7 +154,7 @@ function HistoryItemCard({ it }: { it: HistoryItem }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                Open
+                Open ↗
               </a>
             ) : null}
           </div>
@@ -175,7 +174,6 @@ function HistoryItemCard({ it }: { it: HistoryItem }) {
               ].join(" ")}
               onLoad={() => setLoaded(true)}
             />
-
           </div>
         ) : null}
       </div>
@@ -191,7 +189,10 @@ export default function HistoryPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const canLoadMore = useMemo(() => Boolean(nextCursor) && !loading && !error, [nextCursor, loading, error]);
+  const canLoadMore = useMemo(
+    () => Boolean(nextCursor) && !loading && !error,
+    [nextCursor, loading, error]
+  );
 
   async function load(first = false) {
     try {
@@ -217,7 +218,8 @@ export default function HistoryPage() {
       }
 
       if (!res.ok) {
-        const msg = data?.error || data?.message || `Request failed (${res.status})`;
+        const msg =
+          data?.error || data?.message || `Request failed (${res.status})`;
         throw new Error(msg);
       }
 
@@ -240,16 +242,20 @@ export default function HistoryPage() {
 
   return (
     <div className="min-h-screen bg-bg">
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        {/* Header */}
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-text">History</h1>
-            <p className="mt-1 text-sm text-muted">
-              Review past generations, open images, and reuse prompts.
-            </p>
-          </div>
+      <div className="mx-auto max-w-6xl px-4 py-10">
+        {/* Section title (matches landing page hierarchy) */}
+        <div className="mb-6">
+          <h1 className="text-xl font-semibold tracking-tight text-text">
+            Your History
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Review past generations, open images in full resolution, and reuse prompts.
+          </p>
+        </div>
 
+        {/* Header actions row (kept) */}
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="hidden sm:block" />
           <div className="flex items-center gap-3">
             <Link
               href="/dashboard"
@@ -292,7 +298,7 @@ export default function HistoryPage() {
 
         {/* Load more */}
         {canLoadMore ? (
-          <div className="mt-6 flex justify-center">
+          <div className="mt-8 flex justify-center">
             <button
               className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
               onClick={() => load(false)}
@@ -306,8 +312,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-
-<div className="bg-[rgb(var(--accent))] text-white p-6 rounded-xl">
-  If this is violet, CSS vars work
-</div>

@@ -2,26 +2,39 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    // ✅ Read NextAuth JWT from cookies (no authOptions import)
+    const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "";
+
     const token = await getToken({
       req,
-      secret: process.env.NEXTAUTH_SECRET,
+      secret,
     });
 
-    const accessToken = (token as any)?.accessToken as string | undefined;
-
-    if (!accessToken) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!token) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message:
+            "Session token not found. If this persists, check NEXTAUTH_SECRET/AUTH_SECRET and sign in again.",
+        },
+        { status: 401 }
+      );
     }
 
-    // Body
-    let body: unknown = {};
-    try {
-      body = await req.json();
-    } catch {
-      body = {};
+    // Accept either (your NextAuth config sets both)
+    const bearer = (token as any).accessToken || (token as any).idToken;
+
+    if (!bearer) {
+      return NextResponse.json(
+        {
+          error: "Unauthorized",
+          message:
+            "JWT exists but no accessToken/idToken found. This usually means the jwt callback did not persist tokens.",
+          tokenKeys: Object.keys(token as any),
+        },
+        { status: 401 }
+      );
     }
 
     const base = process.env.API_BASE_URL;
@@ -29,16 +42,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "API_BASE_URL not set" }, { status: 500 });
     }
 
-    // ✅ Your backend route (API Gateway)
+    // ✅ Calls the same backend route, but with GET (credits endpoint)
     const url = new URL("/moviePosterImageGenerator", base);
 
     const upstream = await fetch(url.toString(), {
-      method: "POST",
+      method: "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${bearer}`,
       },
-      body: JSON.stringify(body),
     });
 
     const text = await upstream.text();
@@ -50,10 +61,9 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: any) {
-    // ✅ Never generic Next 500 again; you’ll see the real error
     return NextResponse.json(
       {
-        error: "Generate route crashed",
+        error: "Credits route crashed",
         message: err?.message ?? String(err),
         stack: err?.stack ?? null,
       },

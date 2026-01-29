@@ -52,6 +52,10 @@
   --font-mono: var(--font-geist-mono);
 }
 
+:root {
+  scroll-padding-top: 6rem;
+}
+
 body {
   background: rgb(var(--bg));
   color: rgb(var(--text));
