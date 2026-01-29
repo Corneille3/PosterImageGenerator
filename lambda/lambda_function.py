@@ -110,6 +110,26 @@ def _ttl_epoch(days: int) -> int:
 def _path(event: dict) -> str:
     return (event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path") or "")
 
+def _json_response(status_code: int, body: dict | None = None):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+        "body": "" if body is None else json.dumps(body),
+    }
+
+def _read_json_body(event) -> dict:
+    body = event.get("body")
+    if not body:
+        return {}
+    # If you support isBase64Encoded, decode here (optional)
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        raise ValueError("Invalid JSON body")
+
 
 def get_credits(sub: str) -> int:
     """
