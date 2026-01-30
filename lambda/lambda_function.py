@@ -347,8 +347,7 @@ def lambda_handler(event, context):
     # --- HISTORY DELETE (SOFT DELETE) ---
     if method == "DELETE" and path.endswith("/history"):
         return handle_delete_history(event)
-
-
+    
     # --- CREDITS ENDPOINT ---
     # GET /moviePosterImageGenerator -> return current credits (no prompt needed)
     if method == "GET":
