@@ -40,7 +40,7 @@ def _headers():
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type,Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        "Access-Control-Allow-Methods": "GET,POST, DELETE, OPTIONS",
     }
 
 
@@ -343,6 +343,11 @@ def lambda_handler(event, context):
         cursor = qsp.get("cursor")
         data = get_history(sub=sub, limit=limit, cursor=cursor)
         return _resp(200, data)
+    
+    # --- HISTORY DELETE (SOFT DELETE) ---
+    if method == "DELETE" and path.endswith("/history"):
+        return handle_delete_history(event)
+
 
     # --- CREDITS ENDPOINT ---
     # GET /moviePosterImageGenerator -> return current credits (no prompt needed)
