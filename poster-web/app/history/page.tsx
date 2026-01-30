@@ -103,7 +103,15 @@ function EmptyState() {
   );
 }
 
-function HistoryItemCard({ it }: { it: HistoryItem }) {
+function HistoryItemCard({
+  it,
+  onDelete,
+  deleting,
+}: {
+  it: HistoryItem;
+  onDelete: (sk: string) => void;
+  deleting?: boolean;
+}) {
   const hasImage = Boolean(it.presigned_url);
   const [loaded, setLoaded] = useState(false);
 
@@ -147,6 +155,15 @@ function HistoryItemCard({ it }: { it: HistoryItem }) {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+            <button
+              onClick={() => onDelete(it.sk)}
+              disabled={deleting}
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+              title="Delete"
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </button>
+
             {hasImage ? (
               <a
                 className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
@@ -189,10 +206,51 @@ export default function HistoryPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
+  const [deletingSk, setDeletingSk] = useState<string | null>(null);
+
   const canLoadMore = useMemo(
     () => Boolean(nextCursor) && !loading && !error,
     [nextCursor, loading, error]
   );
+
+  async function onDelete(sk: string) {
+    const ok = window.confirm("Delete this history item?");
+    if (!ok) return;
+
+    setDeletingSk(sk);
+
+    const prev = items;
+    setItems((cur) => cur.filter((x) => x.sk !== sk)); // optimistic
+
+    try {
+      const res = await fetch("/api/history/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sk }),
+      });
+
+      if (res.status === 204) return;
+
+      // rollback if failed
+      setItems(prev);
+
+      const raw = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = { error: raw };
+      }
+
+      const msg =
+        data?.error || data?.message || `Delete failed (${res.status})`;
+      throw new Error(msg);
+    } catch (e: any) {
+      alert(e?.message || "Delete failed.");
+    } finally {
+      setDeletingSk(null);
+    }
+  }
 
   async function load(first = false) {
     try {
@@ -225,7 +283,9 @@ export default function HistoryPage() {
 
       const parsed = data as HistoryResponse;
 
-      setItems((prev) => (first ? parsed.items : [...prev, ...(parsed.items ?? [])]));
+      setItems((prev) =>
+        first ? parsed.items : [...prev, ...(parsed.items ?? [])]
+      );
       setNextCursor((parsed.nextCursor as string | null) ?? null);
     } catch (e: any) {
       setError(e?.message || "Something went wrong.");
@@ -243,7 +303,6 @@ export default function HistoryPage() {
   return (
     <div className="min-h-screen bg-bg">
       <div className="mx-auto max-w-6xl px-4 py-10">
-        {/* Section title (matches landing page hierarchy) */}
         <div className="mb-6">
           <h1 className="text-xl font-semibold tracking-tight text-text">
             Your History
@@ -253,7 +312,6 @@ export default function HistoryPage() {
           </p>
         </div>
 
-        {/* Header actions row (kept) */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="hidden sm:block" />
           <div className="flex items-center gap-3">
@@ -266,7 +324,6 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Error */}
         {error ? (
           <div className="mb-6 rounded-2xl border border-danger/25 bg-danger/10 p-4 shadow-soft">
             <div className="text-sm font-semibold text-text">Error</div>
@@ -280,7 +337,6 @@ export default function HistoryPage() {
           </div>
         ) : null}
 
-        {/* Loading / Empty / List */}
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2">
             <HistorySkeleton />
@@ -291,12 +347,16 @@ export default function HistoryPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {items.map((it) => (
-              <HistoryItemCard key={it.sk} it={it} />
+              <HistoryItemCard
+                key={it.sk}
+                it={it}
+                onDelete={onDelete}
+                deleting={deletingSk === it.sk}
+              />
             ))}
           </div>
         )}
 
-        {/* Load more */}
         {canLoadMore ? (
           <div className="mt-8 flex justify-center">
             <button

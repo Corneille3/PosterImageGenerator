@@ -4,6 +4,7 @@ import uuid
 import base64
 import boto3
 from decimal import Decimal
+from boto3.dynamodb.conditions import Key, Attr
 from datetime import datetime, timezone, timedelta
 from botocore.config import Config
 from botocore.exceptions import ClientError
@@ -39,7 +40,7 @@ def _headers():
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Headers": "Content-Type,Authorization",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        "Access-Control-Allow-Methods": "GET,POST, DELETE, OPTIONS",
     }
 
 
@@ -109,6 +110,26 @@ def _ttl_epoch(days: int) -> int:
 
 def _path(event: dict) -> str:
     return (event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path") or "")
+
+def _json_response(status_code: int, body: dict | None = None):
+    return {
+        "statusCode": status_code,
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+        },
+        "body": "" if body is None else json.dumps(body),
+    }
+
+def _read_json_body(event) -> dict:
+    body = event.get("body")
+    if not body:
+        return {}
+    # If you support isBase64Encoded, decode here (optional)
+    try:
+        return json.loads(body)
+    except json.JSONDecodeError:
+        raise ValueError("Invalid JSON body")
 
 
 def get_credits(sub: str) -> int:
@@ -232,7 +253,9 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
         "ExpressionAttributeValues": {
             ":pk": _pk(sub),
             ":gen": "GEN#",
+            ":false": False,
         },
+        "FilterExpression": "attribute_not_exists(deleted) OR deleted = :false",
         "Limit": limit,
         "ScanIndexForward": False,
     }
@@ -263,6 +286,40 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
 
     return {"items": items, "nextCursor": next_cursor}
 
+    # handle_delete_history(...)
+
+def handle_delete_history(event):
+    if not table:
+        return _resp(500, {"error": "DynamoDB table not configured"})
+
+    sub = _user_sub(event)
+    if not sub:
+        return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
+
+    body = _json_body(event)
+    sk = body.get("sk")
+
+    if not sk or not isinstance(sk, str):
+        return _resp(400, {"error": "Missing or invalid 'sk'."})
+
+    if not sk.startswith("GEN#"):
+        return _resp(400, {"error": "Invalid 'sk' format."})
+
+    try:
+        table.update_item(
+            Key={"pk": _pk(sub), "sk": sk},
+            UpdateExpression="SET deleted = :d",
+            ExpressionAttributeValues={":d": True},
+            ConditionExpression="attribute_exists(sk)",
+        )
+        return {"statusCode": 204, "headers": _headers(), "body": ""}
+
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code == "ConditionalCheckFailedException":
+            return _resp(404, {"error": "History item not found."})
+        return _resp(500, {"error": "Failed to delete history item."})
+
 
 def lambda_handler(event, context):
     event = event or {}
@@ -286,7 +343,11 @@ def lambda_handler(event, context):
         cursor = qsp.get("cursor")
         data = get_history(sub=sub, limit=limit, cursor=cursor)
         return _resp(200, data)
-
+    
+    # --- HISTORY DELETE (SOFT DELETE) ---
+    if method == "DELETE" and path.endswith("/history"):
+        return handle_delete_history(event)
+    
     # --- CREDITS ENDPOINT ---
     # GET /moviePosterImageGenerator -> return current credits (no prompt needed)
     if method == "GET":
@@ -411,3 +472,5 @@ def lambda_handler(event, context):
             error_message=str(e),
         )
         return _resp(502, {"error": "Generation failed"})
+
+  

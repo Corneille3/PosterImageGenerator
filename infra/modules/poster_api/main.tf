@@ -202,7 +202,7 @@ resource "aws_apigatewayv2_api" "api" {
 #cors configuration
   cors_configuration {
   allow_origins = ["http://localhost:3000"]  # tighten later for prod
-  allow_methods = ["GET", "POST", "OPTIONS"]
+  allow_methods = ["GET", "POST", "DELETE", "OPTIONS"]
   allow_headers = ["Content-Type", "Authorization"]
   }
 }
@@ -307,6 +307,16 @@ resource "aws_apigatewayv2_route" "route_history_get" {
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
+
+resource "aws_apigatewayv2_route" "route_history_delete" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "DELETE ${var.api_route_path}/history"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
 
 
 resource "aws_apigatewayv2_stage" "stage" {
