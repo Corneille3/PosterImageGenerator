@@ -281,7 +281,8 @@ resource "aws_apigatewayv2_authorizer" "jwt" {
 # -------------------------
 # Protected route (requires JWT)
 # -------------------------
-resource "aws_apigatewayv2_route" "route" {
+# GET /moviePosterImageGenerator  (credits read)
+resource "aws_apigatewayv2_route" "poster_get" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET ${var.api_route_path}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
@@ -290,7 +291,8 @@ resource "aws_apigatewayv2_route" "route" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
-resource "aws_apigatewayv2_route" "route_post" {
+# POST /moviePosterImageGenerator (generate)
+resource "aws_apigatewayv2_route" "poster_post" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "POST ${var.api_route_path}"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
@@ -299,7 +301,8 @@ resource "aws_apigatewayv2_route" "route_post" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
-resource "aws_apigatewayv2_route" "route_history_get" {
+# GET /moviePosterImageGenerator/history
+resource "aws_apigatewayv2_route" "history_get" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "GET ${var.api_route_path}/history"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
@@ -308,9 +311,30 @@ resource "aws_apigatewayv2_route" "route_history_get" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
-resource "aws_apigatewayv2_route" "route_history_delete" {
+# DELETE /moviePosterImageGenerator/history
+resource "aws_apigatewayv2_route" "history_delete" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "DELETE ${var.api_route_path}/history"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+# POST /moviePosterImageGenerator/history/featured  (pin)
+resource "aws_apigatewayv2_route" "history_featured_post" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST ${var.api_route_path}/history/featured"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+
+# GET /moviePosterImageGenerator/featured  (optional hero-only endpoint)
+resource "aws_apigatewayv2_route" "featured_get" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET ${var.api_route_path}/featured"
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 
   authorization_type = "JWT"

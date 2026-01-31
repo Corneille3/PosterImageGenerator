@@ -4,6 +4,17 @@
    Cinematic Dark + Violet Theme
    Tailwind v4 CSS-first tokens
    ================================ */
+@keyframes heroPop {
+  0%   { transform: scale(0.92); opacity: 0; filter: blur(2px); }
+  60%  { transform: scale(1.05); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes heroGlow {
+  0%, 100% { box-shadow: 0 0 0px rgba(168,85,247,0.0); }
+  50%      { box-shadow: 0 0 18px rgba(168,85,247,0.55); }
+}
+
 
 @keyframes shimmer {
   0% { transform: translateX(-100%); }

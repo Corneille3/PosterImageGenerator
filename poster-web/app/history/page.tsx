@@ -13,6 +13,7 @@ type HistoryItem = {
   output_format?: string;
   presigned_url?: string;
   errorMessage?: string;
+  featured?: boolean;
 };
 
 type HistoryResponse = {
@@ -107,13 +108,22 @@ function HistoryItemCard({
   it,
   onDelete,
   deleting,
+  onSetHero,
+  pinning,
+  justPinned,
 }: {
   it: HistoryItem;
   onDelete: (sk: string) => void;
   deleting?: boolean;
+  onSetHero: (sk: string) => void;
+  pinning?: boolean;
+  justPinned?: boolean;
 }) {
   const hasImage = Boolean(it.presigned_url);
   const [loaded, setLoaded] = useState(false);
+
+  const isSuccess = (it.status || "").toUpperCase() === "SUCCESS";
+  const canPin = hasImage && isSuccess && !deleting && !pinning && !it.featured;
 
   return (
     <div className="rounded-2xl border border-border bg-surface shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
@@ -122,10 +132,23 @@ function HistoryItemCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <StatusBadge status={it.status} />
-              {it.createdAt ? (
-                <span className="text-xs text-muted">
-                  {formatDate(it.createdAt)}
+
+              {it.featured ? (
+                <span
+                  className={[
+                    "inline-flex items-center gap-1 rounded-full border border-accent/35 bg-accent/15 px-2 py-1 text-xs text-text",
+                    justPinned ? "animate-[heroPop_220ms_ease-out]" : "",
+                  ].join(" ")}
+                >
+                  <span className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}>
+                    ⭐
+                  </span>
+                  Hero
                 </span>
+              ) : null}
+
+              {it.createdAt ? (
+                <span className="text-xs text-muted">{formatDate(it.createdAt)}</span>
               ) : null}
             </div>
 
@@ -155,9 +178,37 @@ function HistoryItemCard({
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:justify-end">
+            {/* ✅ Phase 2: Pin button */}
+            {hasImage && isSuccess ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSetHero(it.sk);
+                }}
+                disabled={!canPin}
+                className={[
+                  "inline-flex items-center justify-center rounded-xl border px-3 py-2 text-sm",
+                  it.featured
+                    ? "border-accent/35 bg-accent/15 text-text"
+                    : "border-border bg-surface text-text hover:bg-surface2",
+                  !canPin ? "opacity-50" : "",
+                ].join(" ")}
+                title={it.featured ? "Hero" : "Set as hero"}
+              >
+                {it.featured ? "⭐ Hero" : pinning ? "Pinning…" : "Set as hero"}
+              </button>
+            ) : null}
+
             <button
-              onClick={() => onDelete(it.sk)}
-              disabled={deleting}
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onDelete(it.sk);
+              }}
+              disabled={deleting || pinning}
               className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
               title="Delete"
             >
@@ -170,6 +221,7 @@ function HistoryItemCard({
                 href={it.presigned_url}
                 target="_blank"
                 rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
               >
                 Open ↗
               </a>
@@ -178,7 +230,23 @@ function HistoryItemCard({
         </div>
 
         {hasImage ? (
-          <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface2">
+          <div className="relative mt-4 overflow-hidden rounded-2xl border border-border bg-surface2">
+            {/* ⭐ overlay badge on image */}
+            {it.featured ? (
+              <div
+                className={[
+                  "absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full",
+                  "border border-accent/35 bg-[rgba(15,18,32,0.70)] px-2 py-1 text-xs text-text backdrop-blur",
+                  justPinned ? "animate-[heroPop_220ms_ease-out]" : "",
+                ].join(" ")}
+              >
+                <span className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}>
+                  ⭐
+                </span>
+                Hero
+              </div>
+            ) : null}
+
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={it.presigned_url}
@@ -207,50 +275,13 @@ export default function HistoryPage() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [deletingSk, setDeletingSk] = useState<string | null>(null);
+  const [pinningSk, setPinningSk] = useState<string | null>(null);
+  const [justPinnedSk, setJustPinnedSk] = useState<string | null>(null);
 
   const canLoadMore = useMemo(
     () => Boolean(nextCursor) && !loading && !error,
     [nextCursor, loading, error]
   );
-
-  async function onDelete(sk: string) {
-    const ok = window.confirm("Delete this history item?");
-    if (!ok) return;
-
-    setDeletingSk(sk);
-
-    const prev = items;
-    setItems((cur) => cur.filter((x) => x.sk !== sk)); // optimistic
-
-    try {
-      const res = await fetch("/api/history/delete", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sk }),
-      });
-
-      if (res.status === 204) return;
-
-      // rollback if failed
-      setItems(prev);
-
-      const raw = await res.text();
-      let data: any;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = { error: raw };
-      }
-
-      const msg =
-        data?.error || data?.message || `Delete failed (${res.status})`;
-      throw new Error(msg);
-    } catch (e: any) {
-      alert(e?.message || "Delete failed.");
-    } finally {
-      setDeletingSk(null);
-    }
-  }
 
   async function load(first = false) {
     try {
@@ -300,11 +331,111 @@ export default function HistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function onDelete(sk: string) {
+    const ok = window.confirm("Delete this history item?");
+    if (!ok) return;
+
+    setDeletingSk(sk);
+
+    const prev = items;
+    setItems((cur) => cur.filter((x) => x.sk !== sk)); // optimistic
+
+    try {
+      const res = await fetch("/api/history/delete", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sk }),
+      });
+
+      if (res.status === 204) return;
+
+      // rollback if failed
+      setItems(prev);
+
+      const raw = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = { error: raw };
+      }
+
+      const msg =
+        data?.error || data?.message || `Delete failed (${res.status})`;
+      throw new Error(msg);
+    } catch (e: any) {
+      alert(e?.message || "Delete failed.");
+    } finally {
+      setDeletingSk(null);
+    }
+  }
+
+  async function onSetHero(sk: string) {
+  setPinningSk(sk);
+
+  // 1️⃣ snapshot BEFORE optimistic update
+  const prev = items;
+
+  // 2️⃣ optimistic UI: exactly ONE hero
+  setItems((cur) =>
+    cur.map((x) => ({
+      ...x,
+      featured: x.sk === sk,
+    }))
+  );
+  setJustPinnedSk(sk);
+
+  try {
+    const res = await fetch("/api/history/featured", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sk }),
+    });
+
+    if (!res.ok) {
+      // rollback on failure
+      setItems(prev);
+
+      const raw = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = { error: raw };
+      }
+
+      const msg =
+        data?.error || data?.message || `Pin failed (${res.status})`;
+      throw new Error(msg);
+    }
+
+    // 3️⃣ OPTIMIZED hero update (no refetch)
+    // Find the pinned item from the snapshot
+    const pinned = prev.find((x) => x.sk === sk);
+    const pinnedUrl = pinned?.presigned_url;
+
+    if (pinnedUrl) {
+      window.dispatchEvent(
+        new CustomEvent("hero:set", {
+          detail: { url: pinnedUrl },
+        })
+      );
+    }
+  } catch (e: any) {
+    alert(e?.message || "Pin failed.");
+  } finally {
+    setPinningSk(null);
+    window.setTimeout(() => setJustPinnedSk(null), 350);
+  }
+}
   return (
     <div className="min-h-screen bg-bg">
       <div className="mx-auto max-w-6xl px-4 py-10">
         <div className="mb-6">
-          <h1 className="text-xl font-semibold tracking-tight text-text">
+          <h1
+            id="your-history"
+            className="scroll-mt-24 text-xl font-semibold tracking-tight text-text"
+          >
             Your History
           </h1>
           <p className="mt-1 max-w-2xl text-sm text-muted">
@@ -331,6 +462,7 @@ export default function HistoryPage() {
             <button
               className="mt-3 inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent2"
               onClick={() => load(true)}
+              type="button"
             >
               Retry
             </button>
@@ -352,6 +484,9 @@ export default function HistoryPage() {
                 it={it}
                 onDelete={onDelete}
                 deleting={deletingSk === it.sk}
+                onSetHero={onSetHero}
+                pinning={pinningSk === it.sk}
+                justPinned={justPinnedSk === it.sk}
               />
             ))}
           </div>
@@ -363,6 +498,7 @@ export default function HistoryPage() {
               className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-4 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
               onClick={() => load(false)}
               disabled={loadingMore}
+              type="button"
             >
               {loadingMore ? "Loading…" : "Load more"}
             </button>

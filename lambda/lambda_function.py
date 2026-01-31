@@ -287,14 +287,13 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
     return {"items": items, "nextCursor": next_cursor}
 
     # handle_delete_history(...)
-
 def handle_delete_history(event):
     if not table:
         return _resp(500, {"error": "DynamoDB table not configured"})
 
     sub = _user_sub(event)
     if not sub:
-        return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
+        return _resp(401, {"error": "Unauthorized"})
 
     body = _json_body(event)
     sk = body.get("sk")
@@ -305,9 +304,21 @@ def handle_delete_history(event):
     if not sk.startswith("GEN#"):
         return _resp(400, {"error": "Invalid 'sk' format."})
 
+    pk = _pk(sub)
+
+    # Optional: ensure the item exists and belongs to this user
+    try:
+        got = table.get_item(Key={"pk": pk, "sk": sk})
+        item = got.get("Item")
+        if not item:
+            return _resp(404, {"error": "History item not found."})
+    except Exception as e:
+        return _resp(500, {"error": f"Failed to read history item: {str(e)}"})
+
+    # Soft delete
     try:
         table.update_item(
-            Key={"pk": _pk(sub), "sk": sk},
+            Key={"pk": pk, "sk": sk},
             UpdateExpression="SET deleted = :d",
             ExpressionAttributeValues={":d": True},
             ConditionExpression="attribute_exists(sk)",
@@ -320,6 +331,147 @@ def handle_delete_history(event):
             return _resp(404, {"error": "History item not found."})
         return _resp(500, {"error": "Failed to delete history item."})
 
+    except Exception as e:
+        return _resp(500, {"error": f"Failed to delete history item: {str(e)}"})
+
+def handle_set_featured_history(event):
+    if not table:
+        return _resp(500, {"error": "DynamoDB table not configured"})
+
+    sub = _user_sub(event)
+    if not sub:
+        return _resp(401, {"error": "Unauthorized"})
+
+    body = _json_body(event)
+    sk = body.get("sk")
+
+    if not sk or not isinstance(sk, str) or not sk.startswith("GEN#"):
+        return _resp(400, {"error": "Missing or invalid 'sk'."})
+
+    pk = _pk(sub)
+
+    # 0) Ensure target exists and isn't deleted
+    try:
+        got = table.get_item(Key={"pk": pk, "sk": sk})
+        item = got.get("Item")
+        if not item:
+            return _resp(404, {"error": "History item not found."})
+        if item.get("deleted") is True:
+            return _resp(400, {"error": "Cannot feature a deleted item."})
+    except Exception as e:
+        return _resp(500, {"error": f"Failed to read target item: {str(e)}"})
+
+    # 1) Find all currently featured items (best-effort cleanup)
+    try:
+        featured_sks = []
+        eks = None
+
+        while True:
+            params = {
+                "KeyConditionExpression": Key("pk").eq(pk) & Key("sk").begins_with("GEN#"),
+                # ignore deleted + only featured=true
+                "FilterExpression": (Attr("featured").eq(True)) & (Attr("deleted").ne(True)),
+                "ProjectionExpression": "sk",
+            }
+            if eks:
+                params["ExclusiveStartKey"] = eks
+
+            resp = table.query(**params)
+            for x in (resp.get("Items", []) or []):
+                old_sk = x.get("sk")
+                if old_sk:
+                    featured_sks.append(old_sk)
+
+            eks = resp.get("LastEvaluatedKey")
+            if not eks:
+                break
+
+    except Exception as e:
+        return _resp(500, {"error": f"Failed to query featured items: {str(e)}"})
+
+    # 2) Unfeature all other featured items (best-effort)
+    for old_sk in featured_sks:
+        if old_sk == sk:
+            continue
+        try:
+            table.update_item(
+                Key={"pk": pk, "sk": old_sk},
+                UpdateExpression="SET featured = :f",
+                ExpressionAttributeValues={":f": False},
+                ConditionExpression="attribute_exists(sk)",
+            )
+        except Exception:
+            pass
+
+    # 3) Feature selected item
+    try:
+        table.update_item(
+            Key={"pk": pk, "sk": sk},
+            UpdateExpression="SET featured = :t",
+            ExpressionAttributeValues={":t": True},
+            ConditionExpression="attribute_exists(sk)",
+        )
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code == "ConditionalCheckFailedException":
+            return _resp(404, {"error": "History item not found."})
+        return _resp(500, {"error": "Failed to set featured item."})
+    except Exception as e:
+        return _resp(500, {"error": f"Failed to set featured item: {str(e)}"})
+
+    return {"statusCode": 204, "headers": _headers(), "body": ""}
+
+def get_featured(sub: str):
+    if not table:
+        return {"presigned_url": None, "sk": None}
+
+    pk = _pk(sub)
+
+    # We may need to scan multiple pages because "featured" is not in the key,
+    # and FilterExpression is applied AFTER reading items.
+    eks = None
+    page_limit = 50
+    max_pages = 10  # safety cap: up to 500 items scanned worst-case
+
+    for _ in range(max_pages):
+        params = {
+            "KeyConditionExpression": "pk = :pk AND begins_with(sk, :gen)",
+            "ExpressionAttributeValues": {
+                ":pk": pk,
+                ":gen": "GEN#",
+                ":false": False,
+                ":true": True,
+            },
+            # Ignore soft-deleted, require featured=true
+            "FilterExpression": "(attribute_not_exists(deleted) OR deleted = :false) AND featured = :true",
+            "Limit": page_limit,
+            "ScanIndexForward": False,  # newest-first
+        }
+        if eks:
+            params["ExclusiveStartKey"] = eks
+
+        resp = table.query(**params)
+        items = resp.get("Items", []) or []
+
+        if items:
+            it = items[0]
+            key = it.get("s3Key")
+            if not key:
+                return {"presigned_url": None, "sk": it.get("sk")}
+
+            url = s3.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={"Bucket": BUCKET_NAME, "Key": key},
+                ExpiresIn=URL_EXPIRES_SECONDS,
+                HttpMethod="GET",
+            )
+            return {"presigned_url": url, "sk": it.get("sk")}
+
+        eks = resp.get("LastEvaluatedKey")
+        if not eks:
+            break
+
+    return {"presigned_url": None, "sk": None}
 
 def lambda_handler(event, context):
     event = event or {}
@@ -336,24 +488,43 @@ def lambda_handler(event, context):
 
     path = _path(event)
 
-    # --- HISTORY ENDPOINT ---
+    # -------------------------
+    # ROUTES (order matters)
+    # -------------------------
+
+    # 1) GET /moviePosterImageGenerator/history
     if method == "GET" and path.endswith("/history"):
         qsp = event.get("queryStringParameters") or {}
-        limit = int(qsp.get("limit") or 20)
+        try:
+            limit = int(qsp.get("limit") or 20)
+        except Exception:
+            limit = 20
         cursor = qsp.get("cursor")
         data = get_history(sub=sub, limit=limit, cursor=cursor)
         return _resp(200, data)
-    
-    # --- HISTORY DELETE (SOFT DELETE) ---
+
+    # 2) DELETE /moviePosterImageGenerator/history
     if method == "DELETE" and path.endswith("/history"):
         return handle_delete_history(event)
-    
-    # --- CREDITS ENDPOINT ---
-    # GET /moviePosterImageGenerator -> return current credits (no prompt needed)
+
+    # 3) POST /moviePosterImageGenerator/history/featured  (pin)
+    if method == "POST" and path.endswith("/history/featured"):
+        return handle_set_featured_history(event)
+
+    # 4) GET /moviePosterImageGenerator/featured (fetch pinned hero only)
+    if method == "GET" and path.endswith("/featured"):
+        data = get_featured(sub=sub)
+        return _resp(200, data)
+
+    # 5) GET /moviePosterImageGenerator  (credits)
+    # Keep this LAST among GET routes, otherwise it could “catch” other GETs depending on path matching.
     if method == "GET":
         credits = get_credits(sub)
         return _resp(200, {"credits": credits})
 
+    # -------------------------
+    # GENERATION (POST /moviePosterImageGenerator)
+    # -------------------------
     # Everything below here is generation
     qsp = event.get("queryStringParameters") or {}
     body = _json_body(event)
@@ -473,4 +644,4 @@ def lambda_handler(event, context):
         )
         return _resp(502, {"error": "Generation failed"})
 
-  
+
