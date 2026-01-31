@@ -3,6 +3,7 @@ import HeroVisual from "./components/HeroVisual";
 import RecentShowcase from "./components/RecentShowcase";
 import LandingCTA from "./components/LandingCTA";
 
+
 export default function HomePage() {
   return (
     <div className="py-10">

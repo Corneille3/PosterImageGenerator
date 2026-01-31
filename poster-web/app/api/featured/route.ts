@@ -6,8 +6,9 @@ export async function GET(req: Request) {
     const token = await getToken({ req: req as any });
     const accessToken = (token as any)?.accessToken;
 
+    // Not signed in: return null (not an error)
     if (!accessToken) {
-      return NextResponse.json({ items: [], nextCursor: null }, { status: 200 });
+      return NextResponse.json({ presigned_url: null, sk: null }, { status: 200 });
     }
 
     const apiBase = process.env.API_BASE_URL;
@@ -15,21 +16,19 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Missing API_BASE_URL" }, { status: 500 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const limit = searchParams.get("limit") ?? "10";
-    const cursor = searchParams.get("cursor");
+    const upstream = await fetch(
+      `${apiBase}/moviePosterImageGenerator/featured`,
+      {
+        method: "GET",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        cache: "no-store",
+      }
+    );
 
-    const upstreamUrl = new URL(`${apiBase}/moviePosterImageGenerator/history`);
-    upstreamUrl.searchParams.set("limit", limit);
-    if (cursor) upstreamUrl.searchParams.set("cursor", cursor);
-
-    const upstream = await fetch(upstreamUrl.toString(), {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      cache: "no-store",
-    });
+    // If upstream returns no content
+    if (upstream.status === 204) {
+      return new NextResponse(null, { status: 204 });
+    }
 
     const text = await upstream.text();
     const contentType = upstream.headers.get("content-type") || "application/json";
@@ -39,9 +38,9 @@ export async function GET(req: Request) {
       headers: { "Content-Type": contentType },
     });
   } catch (e: any) {
-    console.error("GET /api/history failed:", e);
+    console.error("GET /api/featured failed:", e);
     return NextResponse.json(
-      { error: "History proxy failed", detail: e?.message || String(e) },
+      { error: "Featured fetch proxy failed", detail: e?.message || String(e) },
       { status: 500 }
     );
   }

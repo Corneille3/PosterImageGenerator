@@ -22,32 +22,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing API_BASE_URL" }, { status: 500 });
     }
 
-    // Upstream endpoint for pinning (Phase 2)
-    const upstream = await fetch(
-      `${apiBase}/moviePosterImageGenerator/history/featured`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ sk }),
-        cache: "no-store",
-      }
-    );
+    const upstreamUrl = `${apiBase}/moviePosterImageGenerator/history/featured`;
 
-    // If upstream returns no content
+    const upstream = await fetch(upstreamUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sk }),
+      cache: "no-store",
+    });
+
+    // forward raw body (could be empty)
+    const text = await upstream.text();
+
+    // If upstream returns 204, keep it 204
     if (upstream.status === 204) {
       return new NextResponse(null, { status: 204 });
     }
 
-    // Otherwise forward JSON (or raw) transparently
-    const text = await upstream.text();
+    // Forward JSON or raw text (don’t assume it’s JSON)
+    const contentType = upstream.headers.get("content-type") || "application/json";
     return new NextResponse(text, {
       status: upstream.status,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": contentType },
     });
-  } catch {
-    return NextResponse.json({ error: "Featured proxy failed" }, { status: 500 });
+  } catch (e: any) {
+    console.error("POST /api/history/featured failed:", e);
+    return NextResponse.json(
+      { error: "Featured proxy failed", detail: e?.message || String(e) },
+      { status: 500 }
+    );
   }
 }
