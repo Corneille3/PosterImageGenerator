@@ -128,9 +128,10 @@ function HistoryItemCard({
   return (
     <div className="rounded-2xl border border-border bg-surface shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
       <div className="p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          {/* Left: status + badges + date */}
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={it.status} />
 
               {it.featured ? (
@@ -140,10 +141,12 @@ function HistoryItemCard({
                     justPinned ? "animate-[heroPop_220ms_ease-out]" : "",
                   ].join(" ")}
                 >
-                  <span className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}>
+                  <span
+                    className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}
+                  >
                     ⭐
                   </span>
-                  Hero
+                  <span>Hero</span>
                 </span>
               ) : null}
 
@@ -151,34 +154,10 @@ function HistoryItemCard({
                 <span className="text-xs text-muted">{formatDate(it.createdAt)}</span>
               ) : null}
             </div>
-
-            <div className="mt-2 line-clamp-3 text-sm font-medium text-text">
-              {it.prompt || "(no prompt)"}
-            </div>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-              {it.aspect_ratio ? (
-                <span className="rounded-full border border-border bg-surface2 px-2 py-1">
-                  {it.aspect_ratio}
-                </span>
-              ) : null}
-              {it.output_format ? (
-                <span className="rounded-full border border-border bg-surface2 px-2 py-1">
-                  {it.output_format}
-                </span>
-              ) : null}
-            </div>
-
-            {it.status !== "SUCCESS" && it.errorMessage ? (
-              <div className="mt-3 rounded-xl border border-danger/25 bg-danger/10 p-3 text-sm text-text">
-                <div className="text-xs font-semibold text-danger">Error</div>
-                <div className="mt-1 text-sm text-muted">{it.errorMessage}</div>
-              </div>
-            ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 sm:justify-end">
-            {/* ✅ Phase 2: Pin button */}
+          {/* Right: actions */}
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {hasImage && isSuccess ? (
               <button
                 type="button"
@@ -226,12 +205,50 @@ function HistoryItemCard({
                 Open ↗
               </a>
             ) : null}
+
+            {hasImage && isSuccess ? (
+              <a
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                href={`/api/history/download?sk=${encodeURIComponent(it.sk)}`}
+                onClick={(e) => e.stopPropagation()}
+                title="Download"
+              >
+                Download ⬇
+              </a>
+            ) : null}
           </div>
+
+          {/* Full-width prompt */}
+          <div className="sm:col-span-2 min-w-0 text-sm font-medium text-text break-words">
+            {it.prompt || "(no prompt)"}
+          </div>
+
+          {/* Full-width meta chips */}
+          <div className="sm:col-span-2 mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+            {it.aspect_ratio ? (
+              <span className="rounded-full border border-border bg-surface2 px-2 py-1">
+                {it.aspect_ratio}
+              </span>
+            ) : null}
+
+            {it.output_format ? (
+              <span className="rounded-full border border-border bg-surface2 px-2 py-1 uppercase">
+                {it.output_format}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Full-width error */}
+          {it.status !== "SUCCESS" && it.errorMessage ? (
+            <div className="sm:col-span-2 mt-2 rounded-xl border border-danger/25 bg-danger/10 p-3 text-sm text-text">
+              <div className="text-xs font-semibold text-danger">Error</div>
+              <div className="mt-1 text-sm text-muted">{it.errorMessage}</div>
+            </div>
+          ) : null}
         </div>
 
         {hasImage ? (
           <div className="relative mt-4 overflow-hidden rounded-2xl border border-border bg-surface2">
-            {/* ⭐ overlay badge on image */}
             {it.featured ? (
               <div
                 className={[
@@ -265,6 +282,7 @@ function HistoryItemCard({
     </div>
   );
 }
+
 
 export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([]);
@@ -314,9 +332,7 @@ export default function HistoryPage() {
 
       const parsed = data as HistoryResponse;
 
-      setItems((prev) =>
-        first ? parsed.items : [...prev, ...(parsed.items ?? [])]
-      );
+      setItems((prev) => (first ? parsed.items : [...prev, ...(parsed.items ?? [])]));
       setNextCursor((parsed.nextCursor as string | null) ?? null);
     } catch (e: any) {
       setError(e?.message || "Something went wrong.");
@@ -360,8 +376,7 @@ export default function HistoryPage() {
         data = { error: raw };
       }
 
-      const msg =
-        data?.error || data?.message || `Delete failed (${res.status})`;
+      const msg = data?.error || data?.message || `Delete failed (${res.status})`;
       throw new Error(msg);
     } catch (e: any) {
       alert(e?.message || "Delete failed.");
@@ -371,63 +386,63 @@ export default function HistoryPage() {
   }
 
   async function onSetHero(sk: string) {
-  setPinningSk(sk);
+    setPinningSk(sk);
 
-  // 1️⃣ snapshot BEFORE optimistic update
-  const prev = items;
+    // 1️⃣ snapshot BEFORE optimistic update
+    const prev = items;
 
-  // 2️⃣ optimistic UI: exactly ONE hero
-  setItems((cur) =>
-    cur.map((x) => ({
-      ...x,
-      featured: x.sk === sk,
-    }))
-  );
-  setJustPinnedSk(sk);
+    // 2️⃣ optimistic UI: exactly ONE hero
+    setItems((cur) =>
+      cur.map((x) => ({
+        ...x,
+        featured: x.sk === sk,
+      }))
+    );
+    setJustPinnedSk(sk);
 
-  try {
-    const res = await fetch("/api/history/featured", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sk }),
-    });
+    try {
+      const res = await fetch("/api/history/featured", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sk }),
+      });
 
-    if (!res.ok) {
-      // rollback on failure
-      setItems(prev);
+      if (!res.ok) {
+        // rollback on failure
+        setItems(prev);
 
-      const raw = await res.text();
-      let data: any;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = { error: raw };
+        const raw = await res.text();
+        let data: any;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          data = { error: raw };
+        }
+
+        const msg = data?.error || data?.message || `Pin failed (${res.status})`;
+        throw new Error(msg);
       }
 
-      const msg =
-        data?.error || data?.message || `Pin failed (${res.status})`;
-      throw new Error(msg);
-    }
+      // 3️⃣ OPTIMIZED hero update (no refetch)
+      // Find the pinned item from the snapshot
+      const pinned = prev.find((x) => x.sk === sk);
+      const pinnedUrl = pinned?.presigned_url;
 
-    // 3️⃣ OPTIMIZED hero update (no refetch)
-    // Find the pinned item from the snapshot
-    const pinned = prev.find((x) => x.sk === sk);
-    const pinnedUrl = pinned?.presigned_url;
-
-    if (pinnedUrl) {
-      window.dispatchEvent(
-        new CustomEvent("hero:set", {
-          detail: { url: pinnedUrl },
-        })
-      );
+      if (pinnedUrl) {
+        window.dispatchEvent(
+          new CustomEvent("hero:set", {
+            detail: { url: pinnedUrl },
+          })
+        );
+      }
+    } catch (e: any) {
+      alert(e?.message || "Pin failed.");
+    } finally {
+      setPinningSk(null);
+      window.setTimeout(() => setJustPinnedSk(null), 350);
     }
-  } catch (e: any) {
-    alert(e?.message || "Pin failed.");
-  } finally {
-    setPinningSk(null);
-    window.setTimeout(() => setJustPinnedSk(null), 350);
   }
-}
+
   return (
     <div className="min-h-screen bg-bg">
       <div className="mx-auto max-w-6xl px-4 py-10">
