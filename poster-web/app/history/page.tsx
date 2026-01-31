@@ -296,10 +296,72 @@ export default function HistoryPage() {
   const [pinningSk, setPinningSk] = useState<string | null>(null);
   const [justPinnedSk, setJustPinnedSk] = useState<string | null>(null);
 
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "SUCCESS" | "FAILED">("ALL");
+  const [heroOnly, setHeroOnly] = useState(false);
+  const [hasImageOnly, setHasImageOnly] = useState(false);
+
+  const [sortBy, setSortBy] = useState<"NEWEST" | "OLDEST" | "STATUS">("NEWEST");
+
+
   const canLoadMore = useMemo(
     () => Boolean(nextCursor) && !loading && !error,
     [nextCursor, loading, error]
   );
+
+    const visibleItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    let list = items.filter((it) => {
+      if (statusFilter !== "ALL") {
+        const st = (it.status || "").toUpperCase();
+        if (st !== statusFilter) return false;
+      }
+
+      if (heroOnly && !it.featured) return false;
+      if (hasImageOnly && !it.presigned_url) return false;
+
+      if (q) {
+        const prompt = (it.prompt || "").toLowerCase();
+        const aspect = (it.aspect_ratio || "").toLowerCase();
+        const fmt = (it.output_format || "").toLowerCase();
+        const status = (it.status || "").toLowerCase();
+        const date = (it.createdAt || "").toLowerCase();
+
+        // Search across a few useful fields
+        if (
+          !prompt.includes(q) &&
+          !aspect.includes(q) &&
+          !fmt.includes(q) &&
+          !status.includes(q) &&
+          !date.includes(q)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    list.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+      if (sortBy === "NEWEST") return bTime - aTime;
+      if (sortBy === "OLDEST") return aTime - bTime;
+
+      // STATUS sort: SUCCESS first, then FAILED, then others
+      const rank = (s?: string) => {
+        const x = (s || "").toUpperCase();
+        if (x === "SUCCESS") return 0;
+        if (x === "FAILED") return 1;
+        return 2;
+      };
+      return rank(a.status) - rank(b.status) || (bTime - aTime);
+    });
+
+    return list;
+  }, [items, query, statusFilter, heroOnly, hasImageOnly, sortBy]);
 
   async function load(first = false) {
     try {
@@ -458,9 +520,71 @@ export default function HistoryPage() {
           </p>
         </div>
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="hidden sm:block" />
-          <div className="flex items-center gap-3">
+        {/* Results count */}
+        <p className="mb-4 text-xs text-muted">
+          Showing {visibleItems.length} of {items.length}
+        </p>
+
+        {/* Search / Filter / Sort row */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          {/* Left: Search + Filters */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-80">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search prompts, status, format…"
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
+                type="text"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+              >
+                <option value="ALL">All</option>
+                <option value="SUCCESS">Success</option>
+                <option value="FAILED">Failed</option>
+              </select>
+
+              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={heroOnly}
+                  onChange={(e) => setHeroOnly(e.target.checked)}
+                />
+                Hero only
+              </label>
+
+              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={hasImageOnly}
+                  onChange={(e) => setHasImageOnly(e.target.checked)}
+                />
+                Has image
+              </label>
+            </div>
+          </div>
+
+          {/* Right: Sort + Back */}
+          <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+              title="Sort"
+            >
+              <option value="NEWEST">Newest</option>
+              <option value="OLDEST">Oldest</option>
+              <option value="STATUS">Status</option>
+            </select>
+
             <Link
               href="/dashboard"
               className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
@@ -469,6 +593,7 @@ export default function HistoryPage() {
             </Link>
           </div>
         </div>
+
 
         {error ? (
           <div className="mb-6 rounded-2xl border border-danger/25 bg-danger/10 p-4 shadow-soft">
@@ -489,11 +614,11 @@ export default function HistoryPage() {
             <HistorySkeleton />
             <HistorySkeleton />
           </div>
-        ) : !error && items.length === 0 ? (
+        ) : !error && visibleItems.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {items.map((it) => (
+            {visibleItems.map((it) => (
               <HistoryItemCard
                 key={it.sk}
                 it={it}
