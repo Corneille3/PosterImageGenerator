@@ -128,9 +128,10 @@ function HistoryItemCard({
   return (
     <div className="rounded-2xl border border-border bg-surface shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
       <div className="p-4 sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+          {/* Left: status + badges + date */}
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <StatusBadge status={it.status} />
 
               {it.featured ? (
@@ -140,10 +141,12 @@ function HistoryItemCard({
                     justPinned ? "animate-[heroPop_220ms_ease-out]" : "",
                   ].join(" ")}
                 >
-                  <span className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}>
+                  <span
+                    className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}
+                  >
                     ⭐
                   </span>
-                  Hero
+                  <span>Hero</span>
                 </span>
               ) : null}
 
@@ -151,34 +154,10 @@ function HistoryItemCard({
                 <span className="text-xs text-muted">{formatDate(it.createdAt)}</span>
               ) : null}
             </div>
-
-            <div className="mt-2 line-clamp-3 text-sm font-medium text-text">
-              {it.prompt || "(no prompt)"}
-            </div>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-              {it.aspect_ratio ? (
-                <span className="rounded-full border border-border bg-surface2 px-2 py-1">
-                  {it.aspect_ratio}
-                </span>
-              ) : null}
-              {it.output_format ? (
-                <span className="rounded-full border border-border bg-surface2 px-2 py-1">
-                  {it.output_format}
-                </span>
-              ) : null}
-            </div>
-
-            {it.status !== "SUCCESS" && it.errorMessage ? (
-              <div className="mt-3 rounded-xl border border-danger/25 bg-danger/10 p-3 text-sm text-text">
-                <div className="text-xs font-semibold text-danger">Error</div>
-                <div className="mt-1 text-sm text-muted">{it.errorMessage}</div>
-              </div>
-            ) : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-2 sm:justify-end">
-            {/* ✅ Phase 2: Pin button */}
+          {/* Right: actions */}
+          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
             {hasImage && isSuccess ? (
               <button
                 type="button"
@@ -226,12 +205,50 @@ function HistoryItemCard({
                 Open ↗
               </a>
             ) : null}
+
+            {hasImage && isSuccess ? (
+              <a
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                href={`/api/history/download?sk=${encodeURIComponent(it.sk)}`}
+                onClick={(e) => e.stopPropagation()}
+                title="Download"
+              >
+                Download ⬇
+              </a>
+            ) : null}
           </div>
+
+          {/* Full-width prompt */}
+          <div className="sm:col-span-2 min-w-0 text-sm font-medium text-text break-words">
+            {it.prompt || "(no prompt)"}
+          </div>
+
+          {/* Full-width meta chips */}
+          <div className="sm:col-span-2 mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+            {it.aspect_ratio ? (
+              <span className="rounded-full border border-border bg-surface2 px-2 py-1">
+                {it.aspect_ratio}
+              </span>
+            ) : null}
+
+            {it.output_format ? (
+              <span className="rounded-full border border-border bg-surface2 px-2 py-1 uppercase">
+                {it.output_format}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Full-width error */}
+          {it.status !== "SUCCESS" && it.errorMessage ? (
+            <div className="sm:col-span-2 mt-2 rounded-xl border border-danger/25 bg-danger/10 p-3 text-sm text-text">
+              <div className="text-xs font-semibold text-danger">Error</div>
+              <div className="mt-1 text-sm text-muted">{it.errorMessage}</div>
+            </div>
+          ) : null}
         </div>
 
         {hasImage ? (
           <div className="relative mt-4 overflow-hidden rounded-2xl border border-border bg-surface2">
-            {/* ⭐ overlay badge on image */}
             {it.featured ? (
               <div
                 className={[
@@ -266,6 +283,7 @@ function HistoryItemCard({
   );
 }
 
+
 export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -278,10 +296,72 @@ export default function HistoryPage() {
   const [pinningSk, setPinningSk] = useState<string | null>(null);
   const [justPinnedSk, setJustPinnedSk] = useState<string | null>(null);
 
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "SUCCESS" | "FAILED">("ALL");
+  const [heroOnly, setHeroOnly] = useState(false);
+  const [hasImageOnly, setHasImageOnly] = useState(false);
+
+  const [sortBy, setSortBy] = useState<"NEWEST" | "OLDEST" | "STATUS">("NEWEST");
+
+
   const canLoadMore = useMemo(
     () => Boolean(nextCursor) && !loading && !error,
     [nextCursor, loading, error]
   );
+
+    const visibleItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+
+    let list = items.filter((it) => {
+      if (statusFilter !== "ALL") {
+        const st = (it.status || "").toUpperCase();
+        if (st !== statusFilter) return false;
+      }
+
+      if (heroOnly && !it.featured) return false;
+      if (hasImageOnly && !it.presigned_url) return false;
+
+      if (q) {
+        const prompt = (it.prompt || "").toLowerCase();
+        const aspect = (it.aspect_ratio || "").toLowerCase();
+        const fmt = (it.output_format || "").toLowerCase();
+        const status = (it.status || "").toLowerCase();
+        const date = (it.createdAt || "").toLowerCase();
+
+        // Search across a few useful fields
+        if (
+          !prompt.includes(q) &&
+          !aspect.includes(q) &&
+          !fmt.includes(q) &&
+          !status.includes(q) &&
+          !date.includes(q)
+        ) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    list.sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+      if (sortBy === "NEWEST") return bTime - aTime;
+      if (sortBy === "OLDEST") return aTime - bTime;
+
+      // STATUS sort: SUCCESS first, then FAILED, then others
+      const rank = (s?: string) => {
+        const x = (s || "").toUpperCase();
+        if (x === "SUCCESS") return 0;
+        if (x === "FAILED") return 1;
+        return 2;
+      };
+      return rank(a.status) - rank(b.status) || (bTime - aTime);
+    });
+
+    return list;
+  }, [items, query, statusFilter, heroOnly, hasImageOnly, sortBy]);
 
   async function load(first = false) {
     try {
@@ -314,9 +394,7 @@ export default function HistoryPage() {
 
       const parsed = data as HistoryResponse;
 
-      setItems((prev) =>
-        first ? parsed.items : [...prev, ...(parsed.items ?? [])]
-      );
+      setItems((prev) => (first ? parsed.items : [...prev, ...(parsed.items ?? [])]));
       setNextCursor((parsed.nextCursor as string | null) ?? null);
     } catch (e: any) {
       setError(e?.message || "Something went wrong.");
@@ -360,8 +438,7 @@ export default function HistoryPage() {
         data = { error: raw };
       }
 
-      const msg =
-        data?.error || data?.message || `Delete failed (${res.status})`;
+      const msg = data?.error || data?.message || `Delete failed (${res.status})`;
       throw new Error(msg);
     } catch (e: any) {
       alert(e?.message || "Delete failed.");
@@ -371,63 +448,63 @@ export default function HistoryPage() {
   }
 
   async function onSetHero(sk: string) {
-  setPinningSk(sk);
+    setPinningSk(sk);
 
-  // 1️⃣ snapshot BEFORE optimistic update
-  const prev = items;
+    // 1️⃣ snapshot BEFORE optimistic update
+    const prev = items;
 
-  // 2️⃣ optimistic UI: exactly ONE hero
-  setItems((cur) =>
-    cur.map((x) => ({
-      ...x,
-      featured: x.sk === sk,
-    }))
-  );
-  setJustPinnedSk(sk);
+    // 2️⃣ optimistic UI: exactly ONE hero
+    setItems((cur) =>
+      cur.map((x) => ({
+        ...x,
+        featured: x.sk === sk,
+      }))
+    );
+    setJustPinnedSk(sk);
 
-  try {
-    const res = await fetch("/api/history/featured", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sk }),
-    });
+    try {
+      const res = await fetch("/api/history/featured", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sk }),
+      });
 
-    if (!res.ok) {
-      // rollback on failure
-      setItems(prev);
+      if (!res.ok) {
+        // rollback on failure
+        setItems(prev);
 
-      const raw = await res.text();
-      let data: any;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = { error: raw };
+        const raw = await res.text();
+        let data: any;
+        try {
+          data = JSON.parse(raw);
+        } catch {
+          data = { error: raw };
+        }
+
+        const msg = data?.error || data?.message || `Pin failed (${res.status})`;
+        throw new Error(msg);
       }
 
-      const msg =
-        data?.error || data?.message || `Pin failed (${res.status})`;
-      throw new Error(msg);
-    }
+      // 3️⃣ OPTIMIZED hero update (no refetch)
+      // Find the pinned item from the snapshot
+      const pinned = prev.find((x) => x.sk === sk);
+      const pinnedUrl = pinned?.presigned_url;
 
-    // 3️⃣ OPTIMIZED hero update (no refetch)
-    // Find the pinned item from the snapshot
-    const pinned = prev.find((x) => x.sk === sk);
-    const pinnedUrl = pinned?.presigned_url;
-
-    if (pinnedUrl) {
-      window.dispatchEvent(
-        new CustomEvent("hero:set", {
-          detail: { url: pinnedUrl },
-        })
-      );
+      if (pinnedUrl) {
+        window.dispatchEvent(
+          new CustomEvent("hero:set", {
+            detail: { url: pinnedUrl },
+          })
+        );
+      }
+    } catch (e: any) {
+      alert(e?.message || "Pin failed.");
+    } finally {
+      setPinningSk(null);
+      window.setTimeout(() => setJustPinnedSk(null), 350);
     }
-  } catch (e: any) {
-    alert(e?.message || "Pin failed.");
-  } finally {
-    setPinningSk(null);
-    window.setTimeout(() => setJustPinnedSk(null), 350);
   }
-}
+
   return (
     <div className="min-h-screen bg-bg">
       <div className="mx-auto max-w-6xl px-4 py-10">
@@ -443,9 +520,71 @@ export default function HistoryPage() {
           </p>
         </div>
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="hidden sm:block" />
-          <div className="flex items-center gap-3">
+        {/* Results count */}
+        <p className="mb-4 text-xs text-muted">
+          Showing {visibleItems.length} of {items.length}
+        </p>
+
+        {/* Search / Filter / Sort row */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          {/* Left: Search + Filters */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="w-full sm:w-80">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search prompts, status, format…"
+                className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/30"
+                type="text"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+              >
+                <option value="ALL">All</option>
+                <option value="SUCCESS">Success</option>
+                <option value="FAILED">Failed</option>
+              </select>
+
+              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={heroOnly}
+                  onChange={(e) => setHeroOnly(e.target.checked)}
+                />
+                Hero only
+              </label>
+
+              <label className="inline-flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4"
+                  checked={hasImageOnly}
+                  onChange={(e) => setHasImageOnly(e.target.checked)}
+                />
+                Has image
+              </label>
+            </div>
+          </div>
+
+          {/* Right: Sort + Back */}
+          <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+              title="Sort"
+            >
+              <option value="NEWEST">Newest</option>
+              <option value="OLDEST">Oldest</option>
+              <option value="STATUS">Status</option>
+            </select>
+
             <Link
               href="/dashboard"
               className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
@@ -454,6 +593,7 @@ export default function HistoryPage() {
             </Link>
           </div>
         </div>
+
 
         {error ? (
           <div className="mb-6 rounded-2xl border border-danger/25 bg-danger/10 p-4 shadow-soft">
@@ -474,11 +614,11 @@ export default function HistoryPage() {
             <HistorySkeleton />
             <HistorySkeleton />
           </div>
-        ) : !error && items.length === 0 ? (
+        ) : !error && visibleItems.length === 0 ? (
           <EmptyState />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
-            {items.map((it) => (
+            {visibleItems.map((it) => (
               <HistoryItemCard
                 key={it.sk}
                 it={it}
