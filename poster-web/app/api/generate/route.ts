@@ -1,73 +1,46 @@
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: Request) {
   try {
-    const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "";
+    const token = await getToken({ req: req as any });
+    const accessToken = (token as any)?.accessToken || (token as any)?.idToken;
 
-    const token = await getToken({
-      req,
-      secret,
-    });
-
-    if (!token) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-          message:
-            "Session token not found. If this persists, check NEXTAUTH_SECRET/AUTH_SECRET and sign in again.",
-        },
-        { status: 401 }
-      );
+    if (!accessToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Accept either (your NextAuth config sets both)
-    const bearer = (token as any).accessToken || (token as any).idToken;
+    const body = await req.json().catch(() => ({}));
 
-    if (!bearer) {
-      return NextResponse.json(
-        {
-          error: "Unauthorized",
-          message:
-            "JWT exists but no accessToken/idToken found. This usually means the jwt callback did not persist tokens.",
-          tokenKeys: Object.keys(token as any),
-        },
-        { status: 401 }
-      );
+    const apiBase = process.env.API_BASE_URL;
+    if (!apiBase) {
+      return NextResponse.json({ error: "Missing API_BASE_URL" }, { status: 500 });
     }
 
-    const base = process.env.API_BASE_URL;
-    if (!base) {
-      return NextResponse.json({ error: "API_BASE_URL not set" }, { status: 500 });
-    }
-
-    // ✅ Calls the same backend route, but with GET (credits endpoint)
-    const url = new URL("/moviePosterImageGenerator", base);
-
-    const upstream = await fetch(url.toString(), {
-      method: "GET",
+    const upstream = await fetch(`${apiBase}/moviePosterImageGenerator`, {
+      method: "POST",
       headers: {
-        Authorization: `Bearer ${bearer}`,
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(body),
+      cache: "no-store",
     });
 
     const text = await upstream.text();
-
     return new NextResponse(text, {
       status: upstream.status,
-      headers: {
-        "Content-Type": upstream.headers.get("content-type") ?? "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
     });
-  } catch (err: any) {
-    return NextResponse.json(
-      {
-        error: "Credits route crashed",
-        message: err?.message ?? String(err),
-        stack: err?.stack ?? null,
-      },
-      { status: 500 }
-    );
+  } catch (e) {
+    return NextResponse.json({ error: "Generate proxy failed" }, { status: 500 });
   }
+}
+
+// OPTIONAL (but helpful): respond cleanly if someone GETs this by mistake
+export async function GET() {
+  return NextResponse.json(
+    { error: "Method Not Allowed. Use POST /api/generate." },
+    { status: 405 }
+  );
 }
