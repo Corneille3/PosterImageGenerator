@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  _req: Request,
+  ctx: { params: Promise<{ id: string }> }
+) {
   try {
     const apiBase = process.env.API_BASE_URL;
     if (!apiBase) {
       return NextResponse.json({ error: "Missing API_BASE_URL" }, { status: 500 });
     }
 
-    const id = params?.id;
+    const { id } = await ctx.params;
     if (!id) {
       return NextResponse.json({ error: "Missing share id" }, { status: 400 });
     }
 
+    // ✅ public upstream call (NO NextAuth token, NO Authorization header)
     const u = new URL(`${apiBase}/moviePosterImageGenerator/share/${encodeURIComponent(id)}`);
     const upstream = await fetch(u.toString(), { method: "GET", cache: "no-store" });
 
@@ -24,7 +28,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     }
 
     if (!upstream.ok) {
-      const msg = data?.error || data?.message || `Upstream failed (${upstream.status})`;
+      const msg =
+        data?.error || data?.message || `Upstream failed (${upstream.status})`;
       return NextResponse.json({ error: msg }, { status: upstream.status });
     }
 

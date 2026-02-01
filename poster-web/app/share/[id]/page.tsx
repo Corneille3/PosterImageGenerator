@@ -1,12 +1,20 @@
-export default async function SharePage({ params }: { params: { id: string } }) {
+export default async function SharePage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+
   const base = process.env.NEXTAUTH_URL || "";
-  const res = await fetch(`${base}/api/share/${params.id}`, { cache: "no-store" });
+  const res = await fetch(`${base}/api/share/${id}`, { cache: "no-store" });
 
   if (!res.ok) {
     return (
       <div className="min-h-screen bg-bg">
         <div className="mx-auto max-w-4xl px-4 py-10">
-          <h1 className="text-xl font-semibold tracking-tight text-text">Link not available</h1>
+          <h1 className="text-xl font-semibold tracking-tight text-text">
+            Link not available
+          </h1>
           <p className="mt-2 text-sm text-muted">
             This share link may have expired, been revoked, or is invalid.
           </p>
@@ -20,7 +28,9 @@ export default async function SharePage({ params }: { params: { id: string } }) 
   return (
     <div className="min-h-screen bg-bg">
       <div className="mx-auto max-w-4xl px-4 py-10">
-        <h1 className="text-xl font-semibold tracking-tight text-text">Shared poster</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-text">
+          Shared poster
+        </h1>
 
         <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
