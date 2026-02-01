@@ -46,16 +46,12 @@ export async function POST(req: Request) {
     }
 
     if (!upstream.ok) {
-      const msg =
-        data?.error ||
-        data?.message ||
-        `Upstream share create failed (${upstream.status})`;
+      const msg = data?.error || data?.message || `Upstream failed (${upstream.status})`;
       return NextResponse.json({ error: msg }, { status: upstream.status });
     }
 
     const shareId = data?.shareId as string | undefined;
-    const shareUrl =
-      (data?.shareUrl as string | undefined) || (shareId ? `/share/${shareId}` : undefined);
+    const shareUrl = (data?.shareUrl as string | undefined) || (shareId ? `/share/${shareId}` : "");
 
     if (!shareId || !shareUrl) {
       return NextResponse.json({ error: "Invalid share payload" }, { status: 502 });
