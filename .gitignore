@@ -35,4 +35,4 @@ crash.log
 .env
 
 #ignore artifact
-lambda_*.zip
+lambda_*.zip.vercel
