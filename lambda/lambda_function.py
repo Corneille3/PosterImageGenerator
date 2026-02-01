@@ -3,6 +3,8 @@ import json
 import uuid
 import base64
 import boto3
+import secrets
+import time
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 from datetime import datetime, timezone, timedelta
@@ -111,6 +113,7 @@ def _ttl_epoch(days: int) -> int:
 def _path(event: dict) -> str:
     return (event.get("rawPath") or event.get("requestContext", {}).get("http", {}).get("path") or "")
 
+
 def _json_response(status_code: int, body: dict | None = None):
     return {
         "statusCode": status_code,
@@ -121,6 +124,7 @@ def _json_response(status_code: int, body: dict | None = None):
         "body": "" if body is None else json.dumps(body),
     }
 
+
 def _read_json_body(event) -> dict:
     body = event.get("body")
     if not body:
@@ -130,6 +134,20 @@ def _read_json_body(event) -> dict:
         return json.loads(body)
     except json.JSONDecodeError:
         raise ValueError("Invalid JSON body")
+
+
+def get_history_item_by_sk(sub: str, target_sk: str):
+    """
+    Fetch a single history item for this user by exact sk.
+    Returns the item dict or None.
+    """
+    if not table:
+        return None
+
+    resp = table.get_item(
+        Key={"pk": _pk(sub), "sk": target_sk}
+    )
+    return resp.get("Item")
 
 
 def get_credits(sub: str) -> int:
@@ -286,7 +304,7 @@ def get_history(sub: str, limit: int = 20, cursor: str | None = None):
 
     return {"items": items, "nextCursor": next_cursor}
 
-    # handle_delete_history(...)
+
 def handle_delete_history(event):
     if not table:
         return _resp(500, {"error": "DynamoDB table not configured"})
@@ -333,6 +351,7 @@ def handle_delete_history(event):
 
     except Exception as e:
         return _resp(500, {"error": f"Failed to delete history item: {str(e)}"})
+
 
 def handle_set_featured_history(event):
     if not table:
@@ -421,6 +440,7 @@ def handle_set_featured_history(event):
 
     return {"statusCode": 204, "headers": _headers(), "body": ""}
 
+
 def get_featured(sub: str):
     if not table:
         return {"presigned_url": None, "sk": None}
@@ -473,21 +493,55 @@ def get_featured(sub: str):
 
     return {"presigned_url": None, "sk": None}
 
+
+def get_sub_from_event(event):
+    rc = event.get("requestContext") or {}
+    auth = rc.get("authorizer") or {}
+
+    # HTTP API v2 JWT authorizer shape
+    jwt = auth.get("jwt") or {}
+    claims = jwt.get("claims") or {}
+
+    # REST API / other shapes fallback
+    if not claims:
+        claims = auth.get("claims") or {}
+
+    return claims.get("sub")
+
+
+def get_http_path(event):
+    # HTTP API v2
+    if event.get("rawPath"):
+        return event["rawPath"]
+
+    rc = event.get("requestContext") or {}
+    http = rc.get("http") or {}
+    if http.get("path"):
+        return http["path"]
+
+    # Fallback (REST API / other)
+    return event.get("path") or ""
+
+
 def lambda_handler(event, context):
     event = event or {}
-    method = _method(event)
 
-    # CORS preflight (HTTP API v2)
+    # ✅ UPDATED: canonical method/path/sub parsing (as requested)
+    method = (event.get("requestContext") or {}).get("http", {}).get("method") or event.get("httpMethod") or ""
+    path = get_http_path(event)
+    sub = get_sub_from_event(event)
+
+     # CORS preflight (HTTP API v2)
     if method == "OPTIONS":
         return {"statusCode": 200, "headers": _headers(), "body": json.dumps({"ok": True})}
 
-    # Identity (JWT authorizer must be enabled on the route)
-    sub = _user_sub(event)
+    # ✅ PUBLIC: allow share fetch without auth
+    if method == "GET" and "/share/" in path:
+        return handle_get_share(event)
+
+    # ✅ Everything else below requires auth
     if not sub:
         return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
-
-    path = _path(event)
-
     # -------------------------
     # ROUTES (order matters)
     # -------------------------
@@ -499,26 +553,35 @@ def lambda_handler(event, context):
             limit = int(qsp.get("limit") or 20)
         except Exception:
             limit = 20
+
         cursor = qsp.get("cursor")
         data = get_history(sub=sub, limit=limit, cursor=cursor)
         return _resp(200, data)
 
     # 2) DELETE /moviePosterImageGenerator/history
-    if method == "DELETE" and path.endswith("/history"):
+    elif method == "DELETE" and path.endswith("/history"):
         return handle_delete_history(event)
 
-    # 3) POST /moviePosterImageGenerator/history/featured  (pin)
-    if method == "POST" and path.endswith("/history/featured"):
+    # 3) POST /moviePosterImageGenerator/history/featured
+    elif method == "POST" and path.endswith("/history/featured"):
         return handle_set_featured_history(event)
 
-    # 4) GET /moviePosterImageGenerator/featured (fetch pinned hero only)
-    if method == "GET" and path.endswith("/featured"):
+    # 4) GET /moviePosterImageGenerator/featured
+    elif method == "GET" and path.endswith("/featured"):
         data = get_featured(sub=sub)
         return _resp(200, data)
 
-    # 5) GET /moviePosterImageGenerator  (credits)
+    # 5) GET /moviePosterImageGenerator/share/{id}  (public fetch share)
+
+    # 6) POST /moviePosterImageGenerator/share  (create share link)
+    elif method == "POST" and path.endswith("/share"):
+        if not sub:
+            return _resp(401, {"error": "Unauthorized"})
+        return handle_create_share(event, sub=sub)
+
+    # 7) GET /moviePosterImageGenerator  (credits)
     # Keep this LAST among GET routes, otherwise it could “catch” other GETs depending on path matching.
-    if method == "GET":
+    elif method == "GET":
         credits = get_credits(sub)
         return _resp(200, {"credits": credits})
 
@@ -644,4 +707,94 @@ def lambda_handler(event, context):
         )
         return _resp(502, {"error": "Generation failed"})
 
+def handle_create_share(event, sub: str):
+    try:
+        body = event.get("body") or "{}"
+        if isinstance(body, str):
+            body = json.loads(body or "{}")
 
+        sk = body.get("sk")
+        expires_in = body.get("expiresInSeconds")  # optional
+
+        if not sk:
+            return _resp(400, {"error": "Missing sk"})
+
+        # 1) Find the history item (must belong to the user)
+        gen = get_history_item_by_sk(sub=sub, target_sk=sk)
+        if not gen:
+            return _resp(404, {"error": "History item not found"})
+
+        status = (gen.get("status") or "").upper()
+        if status != "SUCCESS":
+            return _resp(400, {"error": "Only SUCCESS items can be shared"})
+
+        s3_key = gen.get("s3Key")
+        if not s3_key:
+            return _resp(400, {"error": "No image available for this item"})
+
+        # 2) Create shareId (unguessable)
+        share_id = secrets.token_urlsafe(16)  # ~22 chars
+
+        created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+        # 3) Optional expiry -> stored in `ttl` (epoch seconds)
+        ttl = None
+        if isinstance(expires_in, (int, float)) and int(expires_in) > 0:
+            ttl = int(time.time()) + int(expires_in)
+
+        share_item = {
+            "pk": f"SHARE#{share_id}",
+            "sk": "META",
+            "createdAt": created_at,
+            "s3Key": s3_key,
+            "prompt": gen.get("prompt"),
+        }
+        if ttl:
+            share_item["ttl"] = ttl
+
+        table.put_item(Item=share_item)
+
+        return _resp(200, {"shareId": share_id, "shareUrl": f"/share/{share_id}"})
+    except Exception as e:
+        return _resp(500, {"error": str(e) or "Create share failed"})
+
+
+def handle_get_share(event):
+    try:
+        path = get_http_path(event)
+
+        # Expect: /moviePosterImageGenerator/share/<id>
+        share_id = path.rsplit("/share/", 1)[-1].strip("/")
+        if not share_id:
+            return _resp(400, {"error": "Missing share id"})
+
+        resp = table.get_item(Key={"pk": f"SHARE#{share_id}", "sk": "META"})
+        item = resp.get("Item")
+        if not item:
+            return _resp(404, {"error": "Share link not found"})
+
+        ttl = item.get("ttl")
+        if isinstance(ttl, (int, float)) and int(ttl) <= int(time.time()):
+            return _resp(410, {"error": "Share link expired"})
+
+        s3_key = item.get("s3Key")
+        if not s3_key:
+            return _resp(500, {"error": "Share item missing s3Key"})
+
+        url = s3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": s3_key},
+            ExpiresIn=URL_EXPIRES_SECONDS,
+            HttpMethod="GET",
+        )
+
+        return _resp(
+            200,
+            {
+                "presigned_url": url,
+                "prompt": item.get("prompt"),
+                "createdAt": item.get("createdAt"),
+            },
+        )
+    except Exception as e:
+        return _resp(500, {"error": str(e) or "Get share failed"})

@@ -341,7 +341,24 @@ resource "aws_apigatewayv2_route" "featured_get" {
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
 
+# POST /moviePosterImageGenerator/share  (create share link)
+resource "aws_apigatewayv2_route" "share_post" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST ${var.api_route_path}/share"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
+# GET /moviePosterImageGenerator/share/{id}  (public share view)
+resource "aws_apigatewayv2_route" "share_get" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "GET ${var.api_route_path}/share/{id}"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  # Public endpoint by design (no JWT)
+  authorization_type = "NONE"
+}
 
 resource "aws_apigatewayv2_stage" "stage" {
   api_id      = aws_apigatewayv2_api.api.id

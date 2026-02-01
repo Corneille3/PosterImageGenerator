@@ -216,6 +216,50 @@ function HistoryItemCard({
                 Download ⬇
               </a>
             ) : null}
+
+            {hasImage && isSuccess ? (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+
+                  try {
+                    const res = await fetch("/api/share/create", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        sk: it.sk,
+                        expiresInSeconds: 7 * 24 * 60 * 60, // 7 days (optional)
+                      }),
+                    });
+
+                    const raw = await res.text();
+                    let data: any;
+                    try {
+                      data = JSON.parse(raw);
+                    } catch {
+                      data = { error: raw };
+                    }
+
+                    if (!res.ok) {
+                      throw new Error(data?.error || data?.message || `Share failed (${res.status})`);
+                    }
+
+                    const url = `${window.location.origin}${data.shareUrl}`;
+                    await navigator.clipboard.writeText(url);
+                    alert("Share link copied ✅");
+                  } catch (err: any) {
+                    alert(err?.message || "Share failed.");
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                title="Share link"
+              >
+                Share ↗
+              </button>
+            ) : null}
+            
           </div>
 
           {/* Full-width prompt */}
