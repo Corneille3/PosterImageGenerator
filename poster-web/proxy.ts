@@ -6,7 +6,7 @@ type TokenWithGroups = {
   groups?: string[];
 };
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
   const callbackPath = `${pathname}${search ?? ""}`;
 
