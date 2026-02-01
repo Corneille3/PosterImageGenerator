@@ -3,6 +3,8 @@ import json
 import uuid
 import base64
 import boto3
+import secrets
+import time
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key, Attr
 from datetime import datetime, timezone, timedelta
@@ -23,6 +25,8 @@ URL_EXPIRES_SECONDS = int(os.environ.get("URL_EXPIRES_SECONDS", "3600"))
 DDB_TABLE_NAME = os.environ.get("DDB_TABLE_NAME", "").strip()
 INITIAL_CREDITS = int(os.environ.get("INITIAL_CREDITS", "25"))
 HISTORY_TTL_DAYS = int(os.environ.get("HISTORY_TTL_DAYS", "30"))
+
+
 
 # AWS clients
 bedrock = boto3.client("bedrock-runtime", region_name=BEDROCK_REGION)
@@ -130,6 +134,20 @@ def _read_json_body(event) -> dict:
         return json.loads(body)
     except json.JSONDecodeError:
         raise ValueError("Invalid JSON body")
+    
+def get_history_item_by_sk(sub: str, target_sk: str):
+    """
+    Fetch a single history item for this user by exact sk.
+    Returns the item dict or None.
+    """
+    if not table:
+        return None
+
+    resp = table.get_item(
+        Key={"pk": _pk(sub), "sk": target_sk}
+    )
+    return resp.get("Item")
+
 
 
 def get_credits(sub: str) -> int:
@@ -516,6 +534,16 @@ def lambda_handler(event, context):
         data = get_featured(sub=sub)
         return _resp(200, data)
 
+        # 6) POST /moviePosterImageGenerator/share  (create public share link)
+    if method == "POST" and path.endswith("/share"):
+        return handle_create_share(event)
+
+    # 7) GET /moviePosterImageGenerator/share/{id}  (public fetch share)
+    # NOTE: this is intentionally PUBLIC (no auth required)
+    if method == "GET" and "/share/" in path:
+        return handle_get_share(event)
+
+
     # 5) GET /moviePosterImageGenerator  (credits)
     # Keep this LAST among GET routes, otherwise it could “catch” other GETs depending on path matching.
     if method == "GET":
@@ -644,4 +672,97 @@ def lambda_handler(event, context):
         )
         return _resp(502, {"error": "Generation failed"})
 
+def handle_create_share(event, sub: str):
+    try:
+        body = event.get("body") or "{}"
+        if isinstance(body, str):
+            body = json.loads(body or "{}")
+
+        sk = body.get("sk")
+        expires_in = body.get("expiresInSeconds")  # optional
+
+        if not sk:
+            return _resp(400, {"error": "Missing sk"})
+
+        # 1) Find the history item (must belong to the user)
+        gen = get_history_item_by_sk(sub=sub, target_sk=sk)
+        if not gen:
+            return _resp(404, {"error": "History item not found"})
+
+        status = (gen.get("status") or "").upper()
+        if status != "SUCCESS":
+            return _resp(400, {"error": "Only SUCCESS items can be shared"})
+
+        s3_key = gen.get("s3Key")
+        if not s3_key:
+            return _resp(400, {"error": "No image available for this item"})
+
+        # 2) Create shareId (unguessable)
+        share_id = secrets.token_urlsafe(16)  # ~22 chars
+
+        created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+        # 3) Optional expiry -> stored in `ttl` (epoch seconds)
+        ttl = None
+        if isinstance(expires_in, (int, float)) and int(expires_in) > 0:
+            ttl = int(time.time()) + int(expires_in)
+
+        share_item = {
+            "pk": f"SHARE#{share_id}",
+            "sk": "META",
+            "createdAt": created_at,
+            "s3Key": s3_key,
+            "prompt": gen.get("prompt"),
+        }
+        if ttl:
+            share_item["ttl"] = ttl
+
+        table.put_item(Item=share_item)
+
+        return _resp(200, {"shareId": share_id, "shareUrl": f"/share/{share_id}"})
+    except Exception as e:
+        return _resp(500, {"error": str(e) or "Create share failed"})
+
+
+def handle_get_share(event):
+    try:
+        path = event.get("path") or ""
+        # Expect: /moviePosterImageGenerator/share/<id>
+        share_id = path.rsplit("/share/", 1)[-1].strip("/")
+        if not share_id:
+            return _resp(400, {"error": "Missing share id"})
+
+        # 1) Load share record
+        resp = table.get_item(Key={"pk": f"SHARE#{share_id}", "sk": "META"})
+        item = resp.get("Item")
+        if not item:
+            return _resp(404, {"error": "Share link not found"})
+
+        # 2) If TTL exists but item still present, still enforce expiry
+        ttl = item.get("ttl")
+        if isinstance(ttl, (int, float)) and int(ttl) <= int(time.time()):
+            return _resp(410, {"error": "Share link expired"})
+
+        s3_key = item.get("s3Key")
+        if not s3_key:
+            return _resp(500, {"error": "Share item missing s3Key"})
+
+        # 3) Generate fresh presigned URL
+        url = s3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": s3_key},
+            ExpiresIn=URL_EXPIRES_SECONDS,
+            HttpMethod="GET",
+        )
+
+        return _resp(
+            200,
+            {
+                "presigned_url": url,
+                "prompt": item.get("prompt"),
+                "createdAt": item.get("createdAt"),
+            },
+        )
+    except Exception as e:
+        return _resp(500, {"error": str(e) or "Get share failed"})
 
