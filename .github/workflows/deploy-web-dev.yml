@@ -45,6 +45,19 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Verify Vercel env pulled
+        working-directory: poster-web
+        run: |
+          echo "Pulled env files:"
+          ls -la .vercel || true
+          echo
+          echo "Preview env file exists?"
+          test -f .vercel/.env.preview.local && echo "✅ .env.preview.local found" || (echo "❌ Missing .env.preview.local" && exit 1)
+          echo
+          echo "Show which vars are present (names only):"
+          sed -E 's/=.*$//=*** /' .vercel/.env.preview.local | sort
+
+
       - name: Vercel build
         working-directory: poster-web
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
