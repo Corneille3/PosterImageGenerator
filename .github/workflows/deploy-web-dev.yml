@@ -60,6 +60,9 @@ jobs:
       - name: Vercel build
         working-directory: poster-web
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Verify prebuilt output exists
         working-directory: poster-web
@@ -76,3 +79,6 @@ jobs:
       - name: Vercel deploy (Preview/DEV)
         working-directory: poster-web
         run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
