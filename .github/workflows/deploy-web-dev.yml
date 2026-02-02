@@ -38,9 +38,8 @@ jobs:
       - name: Install Vercel CLI
         run: npm i -g vercel@latest
 
-      - name: Clean nested Vercel config
-        run: rm -rf poster-web/.vercel
-
+      # IMPORTANT: Root Directory is set in Vercel to "poster-web"
+      # So Vercel CLI commands should run from repo root, and .vercel/ will be created at repo root.
       - name: Vercel pull (Preview/DEV)
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
         env:
@@ -50,13 +49,13 @@ jobs:
       - name: Verify Vercel env pulled
         run: |
           echo "Pulled env files:"
-          ls -la poster-web/.vercel || true
+          ls -la .vercel || true
           echo
           echo "Preview env file exists?"
-          test -f poster-web/.vercel/.env.preview.local && echo "✅ .env.preview.local found" || (echo "❌ Missing .env.preview.local" && exit 1)
+          test -f .vercel/.env.preview.local && echo "✅ .env.preview.local found" || (echo "❌ Missing .env.preview.local" && exit 1)
           echo
           echo "Show which vars are present (names only):"
-          sed -E 's/=.*$//=*** /' poster-web/.vercel/.env.preview.local | sort
+          sed -E 's/=.*$//=*** /' .vercel/.env.preview.local | sort
 
       - name: Vercel build
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
@@ -66,14 +65,14 @@ jobs:
 
       - name: Verify prebuilt output exists
         run: |
-          echo "Listing poster-web/.vercel directory:"
-          ls -la poster-web/.vercel || true
+          echo "Listing .vercel directory:"
+          ls -la .vercel || true
           echo
-          echo "Listing poster-web/.vercel/output:"
-          ls -la poster-web/.vercel/output || (echo "❌ poster-web/.vercel/output missing" && exit 1)
+          echo "Listing .vercel/output:"
+          ls -la .vercel/output || (echo "❌ .vercel/output missing" && exit 1)
           echo
-          echo "Top of poster-web/.vercel/output:"
-          find poster-web/.vercel/output -maxdepth 2 -type f | head -n 50
+          echo "Top of .vercel/output:"
+          find .vercel/output -maxdepth 2 -type f | head -n 80
 
       - name: Vercel deploy (Preview/DEV)
         run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
