@@ -1,6 +1,11 @@
 name: Deploy DEV (Web / Vercel)
 
 on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "poster-web/**"
+      - ".github/workflows/deploy-web-dev.yml"
   push:
     branches: ["main"]
     paths:
