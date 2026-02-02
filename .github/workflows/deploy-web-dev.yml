@@ -62,7 +62,7 @@ jobs:
         working-directory: poster-web
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
-       - name: Verify prebuilt output exists
+      - name: Verify prebuilt output exists
         working-directory: poster-web
         run: |
           echo "Listing .vercel directory:"
