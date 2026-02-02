@@ -1,41 +1,76 @@
-name: Deploy PROD (Terraform)
+name: Deploy PROD (Web / Vercel)
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - "poster-web/**"
+      - ".github/workflows/deploy-web-prod.yml"
   workflow_dispatch: {}
 
 permissions:
-  id-token: write
   contents: read
 
 jobs:
-  deploy:
+  deploy-web-prod:
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: us-east-2
+          node-version: 20
+          cache: npm
+          cache-dependency-path: poster-web/package-lock.json
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.7.5
+      - name: Install deps
+        working-directory: poster-web
+        run: npm ci
 
-      - name: Terraform Init (PROD)
-        working-directory: infra/envs/prod
-        run: terraform init
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
 
-      - name: Terraform Apply (PROD)
-        working-directory: infra/envs/prod
-        run: terraform apply -auto-approve
+      - name: Vercel pull (Production)
+        working-directory: poster-web
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Show PROD endpoint
-        working-directory: infra/envs/prod
-        run: terraform output -raw invoke_url
+      - name: Verify Vercel env pulled (Production)
+        working-directory: poster-web
+        run: |
+          echo "Pulled env files:"
+          ls -la .vercel || true
+          echo
+          echo "Production env file exists?"
+          test -f .vercel/.env.production.local && echo "✅ .env.production.local found" || (echo "❌ Missing .env.production.local" && exit 1)
+          echo
+          echo "Show which vars are present (names only):"
+          sed -E 's/=.*$//=*** /' .vercel/.env.production.local | sort
 
+      - name: Vercel build (Production)
+        working-directory: poster-web
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Verify prebuilt output exists
+        working-directory: poster-web
+        run: |
+          echo "Listing .vercel directory:"
+          ls -la .vercel || true
+          echo
+          echo "Listing .vercel/output:"
+          ls -la .vercel/output || (echo "❌ .vercel/output missing" && exit 1)
+          echo
+          echo "Top of .vercel/output:"
+          find .vercel/output -maxdepth 2 -type f | head -n 80
+
+      - name: Vercel deploy (Production)
+        working-directory: poster-web
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
