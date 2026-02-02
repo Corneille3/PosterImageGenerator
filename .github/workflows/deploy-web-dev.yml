@@ -62,6 +62,18 @@ jobs:
         working-directory: poster-web
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
+       - name: Verify prebuilt output exists
+        working-directory: poster-web
+        run: |
+          echo "Listing .vercel directory:"
+          ls -la .vercel || true
+          echo
+          echo "Listing .vercel/output:"
+          ls -la .vercel/output || (echo "❌ .vercel/output missing" && exit 1)
+          echo
+          echo "Top of .vercel/output:"
+          find .vercel/output -maxdepth 2 -type f | head -n 50
+
       - name: Vercel deploy (Preview/DEV)
         working-directory: poster-web
         run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
