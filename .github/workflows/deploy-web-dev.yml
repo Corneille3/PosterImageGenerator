@@ -1,6 +1,11 @@
 name: Deploy DEV (Web / Vercel)
 
 on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "poster-web/**"
+      - ".github/workflows/deploy-web-dev.yml"
   push:
     branches: ["main"]
     paths:
@@ -40,9 +45,33 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
+      - name: Verify Vercel env pulled
+        working-directory: poster-web
+        run: |
+          echo "Pulled env files:"
+          ls -la .vercel || true
+          echo
+          echo "Preview env file exists?"
+          test -f .vercel/.env.preview.local && echo "✅ .env.preview.local found" || (echo "❌ Missing .env.preview.local" && exit 1)
+          echo
+          echo "Show which vars are present (names only):"
+          sed -E 's/=.*$//=*** /' .vercel/.env.preview.local | sort
+
       - name: Vercel build
         working-directory: poster-web
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Verify prebuilt output exists
+        working-directory: poster-web
+        run: |
+          echo "Listing .vercel directory:"
+          ls -la .vercel || true
+          echo
+          echo "Listing .vercel/output:"
+          ls -la .vercel/output || (echo "❌ .vercel/output missing" && exit 1)
+          echo
+          echo "Top of .vercel/output:"
+          find .vercel/output -maxdepth 2 -type f | head -n 50
 
       - name: Vercel deploy (Preview/DEV)
         working-directory: poster-web
