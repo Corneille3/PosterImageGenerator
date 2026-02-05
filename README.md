@@ -14,25 +14,25 @@ A production-oriented, full-stack AI image generation platform built with Next.j
 
 This project demonstrates end-to-end system design, not just AI integration — from frontend UX to backend enforcement and cloud infrastructure.
 
-🚀 Features
+------------Features-----------------------
 
-✨ Text-to-Image Generation powered by Amazon Bedrock
+Text-to-Image Generation powered by Amazon Bedrock
 
-🔐 Secure Authentication using Amazon Cognito + NextAuth
+Secure Authentication using Amazon Cognito + NextAuth
 
-🎟️ Credit Enforcement System (atomic, server-side, abuse-safe)
+Credit Enforcement System (atomic, server-side, abuse-safe)
 
-🧾 Generation History API with pagination & TTL cleanup
+Generation History API with pagination & TTL cleanup
 
-🖼️ Secure Image Delivery via S3 pre-signed URLs
+Secure Image Delivery via S3 pre-signed URLs
 
-⚡ Serverless & Scalable Architecture
+Serverless & Scalable Architecture
 
-🏗️ Infrastructure as Code using Terraform
+Infrastructure as Code using Terraform
 
-🧠 Architecture Overview
+-------Architecture Overview---------------
 
-High-level flow:
+---High-level flow---:
 
 User submits a prompt via the Next.js frontend
 
@@ -42,7 +42,7 @@ Requests are forwarded to AWS API Gateway (HTTP API)
 
 JWT authorizer (Cognito) validates the request
 
-AWS Lambda (Python):
+-------------------AWS Lambda (Python):------------------------------
 
 Enforces user credits (DynamoDB)
 
@@ -54,10 +54,10 @@ Records history with TTL in DynamoDB
 
 Client receives a pre-signed S3 URL for secure access
 
-🔒 All credit enforcement and authorization happen server-side — never in the browser.
+All credit enforcement and authorization happen server-side — never in the browser.
 
-🏗️ Tech Stack
-Frontend
+-----------------Tech Stack------------------------------------------------
+------------------Frontend---------------------------------------
 
 Next.js (App Router)
 
@@ -65,7 +65,7 @@ TypeScript
 
 NextAuth
 
-Backend
+--------------Backend-------------------------------------------------
 
 AWS Lambda (Python 3.11)
 
@@ -73,7 +73,7 @@ AWS API Gateway (HTTP API)
 
 Amazon Bedrock (Text-to-Image)
 
-Data & Storage
+-----------Data & Storage--------------------------------------
 
 Amazon DynamoDB
 
@@ -83,7 +83,7 @@ Generation history (with TTL)
 
 Amazon S3 (generated images)
 
-Auth & Security
+-------------Auth & Security-------------------------------------
 
 Amazon Cognito (User Pool + JWT)
 
@@ -91,13 +91,13 @@ API Gateway JWT Authorizer
 
 Pre-signed S3 URLs
 
-Infrastructure
+--------------Infrastructure------------------------------------------
 
 Terraform (IaC)
 
 Fully reproducible environments
 
-🔐 Credit Enforcement (Key Design Detail)
+------------------- Credit Enforcement (Key Design Detail)-----------------------
 
 Credits are enforced atomically in DynamoDB using conditional updates:
 
@@ -121,7 +121,7 @@ Abuse via concurrent requests
 
 This design mirrors real SaaS billing enforcement patterns.
 
-📜 History API
+---------------------------History API--------------------------------------------
 
 GET /api/history
 
