@@ -32,20 +32,20 @@ function StatusBadge({ status }: { status: string }) {
   const normalized = (status || "").toUpperCase();
   if (normalized === "SUCCESS") {
     return (
-      <span className="inline-flex items-center rounded-full border border-success/30 bg-success/15 px-2 py-1 text-xs text-success">
+      <span className="inline-flex items-center rounded-full border border-success/30 bg-success/15 px-2 py-1 text-xs text-success leading-none">
         SUCCESS
       </span>
     );
   }
   if (normalized === "FAILED") {
     return (
-      <span className="inline-flex items-center rounded-full border border-danger/30 bg-danger/15 px-2 py-1 text-xs text-danger">
+      <span className="inline-flex items-center rounded-full border border-danger/30 bg-danger/15 px-2 py-1 text-xs text-danger leading-none">
         FAILED
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-full border border-border bg-surface2 px-2 py-1 text-xs text-muted">
+    <span className="inline-flex items-center rounded-full border border-border bg-surface2 px-2 py-1 text-xs text-muted leading-none">
       {normalized || "UNKNOWN"}
     </span>
   );
@@ -131,27 +131,36 @@ function HistoryItemCard({
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
           {/* Left: status + badges + date */}
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <StatusBadge status={it.status} />
+            <div className="min-w-0">
+              {/* Row 1: pills ONLY (no wrap) */}
+              <div className="isolate flex items-center gap-2 whitespace-nowrap">
+                <StatusBadge status={it.status} />
 
-              {it.featured ? (
-                <span
-                  className={[
-                    "inline-flex items-center gap-1 rounded-full border border-accent/35 bg-accent/15 px-2 py-1 text-xs text-text",
-                    justPinned ? "animate-[heroPop_220ms_ease-out]" : "",
-                  ].join(" ")}
-                >
+                {it.featured ? (
                   <span
-                    className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}
+                    className={[
+                      "relative z-20 inline-flex items-center gap-1 rounded-full",
+                      "border border-accent/35 bg-accent/15 px-2 py-1 text-xs text-text",
+                      justPinned ? "animate-[heroPop_220ms_ease-out]" : "",
+                    ].join(" ")}
                   >
-                    ⭐
+                    <span
+                      className={
+                        justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""
+                      }
+                    >
+                      ⭐
+                    </span>
+                    <span>Hero</span>
                   </span>
-                  <span>Hero</span>
-                </span>
-              ) : null}
+                ) : null}
+              </div>
 
+              {/* Row 2: date (separate line so it never fights pills) */}
               {it.createdAt ? (
-                <span className="text-xs text-muted">{formatDate(it.createdAt)}</span>
+                <div className="mt-1 text-xs text-muted">
+                  {formatDate(it.createdAt)}
+                </div>
               ) : null}
             </div>
           </div>
@@ -243,7 +252,11 @@ function HistoryItemCard({
                     }
 
                     if (!res.ok) {
-                      throw new Error(data?.error || data?.message || `Share failed (${res.status})`);
+                      throw new Error(
+                        data?.error ||
+                          data?.message ||
+                          `Share failed (${res.status})`
+                      );
                     }
 
                     const url = `${window.location.origin}${data.shareUrl}`;
@@ -259,12 +272,13 @@ function HistoryItemCard({
                 Share ↗
               </button>
             ) : null}
-            
           </div>
 
           {/* Full-width prompt */}
-          <div className="sm:col-span-2 min-w-0 text-sm font-medium text-text break-words">
-            {it.prompt || "(no prompt)"}
+          <div className="sm:col-span-2 min-w-0 text-sm font-medium text-text">
+            <div className="line-clamp-2 break-words">
+              {it.prompt || "(no prompt)"}
+            </div>
           </div>
 
           {/* Full-width meta chips */}
@@ -301,7 +315,11 @@ function HistoryItemCard({
                   justPinned ? "animate-[heroPop_220ms_ease-out]" : "",
                 ].join(" ")}
               >
-                <span className={justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""}>
+                <span
+                  className={
+                    justPinned ? "animate-[heroGlow_1.8s_ease-in-out]" : ""
+                  }
+                >
                   ⭐
                 </span>
                 Hero
@@ -327,7 +345,6 @@ function HistoryItemCard({
   );
 }
 
-
 export default function HistoryPage() {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -341,19 +358,20 @@ export default function HistoryPage() {
   const [justPinnedSk, setJustPinnedSk] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "SUCCESS" | "FAILED">("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | "SUCCESS" | "FAILED">(
+    "ALL"
+  );
   const [heroOnly, setHeroOnly] = useState(false);
   const [hasImageOnly, setHasImageOnly] = useState(false);
 
   const [sortBy, setSortBy] = useState<"NEWEST" | "OLDEST" | "STATUS">("NEWEST");
-
 
   const canLoadMore = useMemo(
     () => Boolean(nextCursor) && !loading && !error,
     [nextCursor, loading, error]
   );
 
-    const visibleItems = useMemo(() => {
+  const visibleItems = useMemo(() => {
     const q = query.trim().toLowerCase();
 
     let list = items.filter((it) => {
@@ -401,7 +419,7 @@ export default function HistoryPage() {
         if (x === "FAILED") return 1;
         return 2;
       };
-      return rank(a.status) - rank(b.status) || (bTime - aTime);
+      return rank(a.status) - rank(b.status) || bTime - aTime;
     });
 
     return list;
@@ -438,7 +456,9 @@ export default function HistoryPage() {
 
       const parsed = data as HistoryResponse;
 
-      setItems((prev) => (first ? parsed.items : [...prev, ...(parsed.items ?? [])]));
+      setItems((prev) =>
+        first ? parsed.items : [...prev, ...(parsed.items ?? [])]
+      );
       setNextCursor((parsed.nextCursor as string | null) ?? null);
     } catch (e: any) {
       setError(e?.message || "Something went wrong.");
@@ -482,7 +502,8 @@ export default function HistoryPage() {
         data = { error: raw };
       }
 
-      const msg = data?.error || data?.message || `Delete failed (${res.status})`;
+      const msg =
+        data?.error || data?.message || `Delete failed (${res.status})`;
       throw new Error(msg);
     } catch (e: any) {
       alert(e?.message || "Delete failed.");
@@ -570,7 +591,7 @@ export default function HistoryPage() {
         </p>
 
         {/* Search / Filter / Sort row */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           {/* Left: Search + Filters */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <div className="w-full sm:w-80">
@@ -637,7 +658,6 @@ export default function HistoryPage() {
             </Link>
           </div>
         </div>
-
 
         {error ? (
           <div className="mb-6 rounded-2xl border border-danger/25 bg-danger/10 p-4 shadow-soft">
