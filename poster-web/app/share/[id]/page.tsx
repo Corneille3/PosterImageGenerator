@@ -17,7 +17,12 @@ export default async function SharePage({
   const base = host ? `${proto}://${host}` : process.env.NEXTAUTH_URL ?? "";
   if (!base) throw new Error("Missing request host and NEXTAUTH_URL");
 
-  const res = await fetch(`${base}/api/share/${id}`, { cache: "no-store" });
+  const apiBase = process.env.API_BASE_URL;
+  if (!apiBase) throw new Error("Missing API_BASE_URL");
+
+  const res = await fetch(`${apiBase}/moviePosterImageGenerator/share/${id}`, {
+    cache: "no-store",
+  });
 
   if (!res.ok) {
   const text = await res.text().catch(() => "");
