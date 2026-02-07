@@ -40,3 +40,7 @@ lambda_*.zip.vercel
 # vercel
 .vercel
 poster-web/.vercel
+
+# Vercel project linkage
+.vercel
+poster-web/.vercel
