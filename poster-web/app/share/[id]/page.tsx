@@ -1,3 +1,8 @@
+import { headers } from "next/headers";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function SharePage({
   params,
 }: {
@@ -5,7 +10,13 @@ export default async function SharePage({
 }) {
   const { id } = await params;
 
-  const base = process.env.NEXTAUTH_URL || "";
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+
+  const base = host ? `${proto}://${host}` : process.env.NEXTAUTH_URL ?? "";
+  if (!base) throw new Error("Missing request host and NEXTAUTH_URL");
+
   const res = await fetch(`${base}/api/share/${id}`, { cache: "no-store" });
 
   if (!res.ok) {
