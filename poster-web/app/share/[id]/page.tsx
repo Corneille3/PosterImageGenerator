@@ -37,13 +37,7 @@ export default async function SharePage({
         </p>
 
         {/* DEBUG (temporary) */}
-        <div className="mt-4 rounded-2xl border border-border bg-surface p-3 text-xs text-text">
-          <div><b>fetch url</b>: {`${base}/api/share/${id}`}</div>
-          <div><b>status</b>: {res.status}</div>
-          <div className="mt-2 whitespace-pre-wrap break-words">
-            <b>body</b>: {text || "(empty)"}
-          </div>
-        </div>
+        
       </div>
     </div>
   );
