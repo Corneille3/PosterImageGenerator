@@ -43,6 +43,18 @@ export default async function SharePage({
           Shared poster
         </h1>
 
+        <div className="mt-4 rounded-2xl border border-border bg-surface p-3 text-xs text-text">
+          <div>
+            <b>res.status</b>: {res.status}
+          </div>
+          <div>
+            <b>keys</b>: {Object.keys(data ?? {}).join(", ") || "(none)"}
+          </div>
+          <div className="mt-2 whitespace-pre-wrap break-words">
+            <b>data</b>: {JSON.stringify(data)}
+          </div>
+        </div>
+
         <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
