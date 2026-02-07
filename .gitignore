@@ -36,3 +36,7 @@ crash.log
 
 #ignore artifact
 lambda_*.zip.vercel
+
+# vercel
+.vercel
+poster-web/.vercel
