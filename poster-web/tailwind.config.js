@@ -1,22 +1,38 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./app/**/*.{js,ts,jsx,tsx,mdx}"],
+  content: [
+    './app/**/*.{js,ts,jsx,tsx}',
+    './pages/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+  ],
   theme: {
     extend: {
-      colors: {
-        bg: "rgb(var(--bg) / <alpha-value>)",
-        surface: "rgb(var(--surface) / <alpha-value>)",
-        surface2: "rgb(var(--surface2) / <alpha-value>)",
-        border: "rgb(var(--border) / <alpha-value>)",
-        text: "rgb(var(--text) / <alpha-value>)",
-        muted: "rgb(var(--muted) / <alpha-value>)",
-        accent: "rgb(var(--accent) / <alpha-value>)",
-        accent2: "rgb(var(--accent-2) / <alpha-value>)",
-        success: "rgb(var(--success) / <alpha-value>)",
-        danger: "rgb(var(--danger) / <alpha-value>)",
+      // All your keyframes together
+      keyframes: {
+        fadeUp: {
+          "0%": { opacity: "0", transform: "translateY(12px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        pulseSlow: {
+          '0%, 100%': {
+            opacity: '0.4',
+            transform: 'scale(0.95)',
+            boxShadow:
+              '0 0 20px var(--brand-gradient-from), 0 0 40px var(--brand-gradient-to)',
+          },
+          '50%': {
+            opacity: '0.7',
+            transform: 'scale(1.05)',
+            boxShadow:
+              '0 0 30px var(--brand-gradient-from), 0 0 60px var(--brand-gradient-to)',
+          },
+        },
       },
-      boxShadow: {
-        soft: "0 10px 30px rgba(0,0,0,0.35)",
+
+      // All animations together
+      animation: {
+        fadeUp: "fadeUp 0.5s ease-out forwards",
+        'pulse-slow': 'pulseSlow 2.5s ease-in-out infinite',
       },
     },
   },
