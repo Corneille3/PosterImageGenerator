@@ -72,3 +72,7 @@ body {
   color: rgb(var(--text));
   font-family: var(--font-sans), system-ui, sans-serif;
 }
+
+html {
+  scroll-padding-top: 64px;
+}
