@@ -67,7 +67,7 @@ export default function HomePage() {
       <section className="mt-12">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 id="showcase" className="scroll-mt-6 text-lg font-semibold text-text">
+            <h2 id="showcase" className="scroll-mt-4 text-lg font-semibold text-text">
               Showcase
             </h2>
             <p className="mt-1 text-sm text-muted">
@@ -93,7 +93,7 @@ export default function HomePage() {
         <div className="mb-6">
           <h2
             id="features"
-            className="scroll-mt-4 text-xl font-semibold tracking-tight text-text"
+            className="scroll-mt-3 text-xl font-semibold tracking-tight text-text"
           >
             Key Features
           </h2>
@@ -137,7 +137,7 @@ export default function HomePage() {
         <div className="mb-6">
           <h2
             id="how-it-works"
-            className="scroll-mt-4 text-xl font-semibold tracking-tight text-text"
+            className="scroll-mt-1 text-xl font-semibold tracking-tight text-text"
           >
             How to get the best out of the generator
           </h2>
