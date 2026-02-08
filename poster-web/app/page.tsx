@@ -109,27 +109,38 @@ export default function HomePage() {
               title: "Preset Styles",
               desc:
                 "Not inspired? We got you! Choose from Cinematic, Noir, Horror, Animation and more — each style guides lighting, mood, and composition. Everything you need in one place.",
+              imgSrc: "/images/preset.jpg", // Correct path to the preset image
             },
             {
               title: "High Quality",
               desc:
                 "Every image is produced at a resolution suitable for digital and print-ready use. Perfect for posters, social media content, branding visuals, storyboards, and more.",
+              imgSrc: "/images/camera-lens.jpg", // Correct path to the camera-lens image
             },
             {
               title: "History",
               desc:
                 "Every generation is automatically saved with prompt and status, making it easy to review, reopen, and reuse past creations.",
+              imgSrc: "/images/folder-icon.png", // Correct path to the logo1 image
             },
           ].map((f) => (
             <div
               key={f.title}
-              className="rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
+              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
             >
+              {/* Image in the top-right corner with higher opacity and larger size */}
+              <img
+                src={f.imgSrc}
+                alt={`${f.title} icon`}
+                className="absolute top-2 right-2 w-12 h-12 opacity-200 bg-white bg-opacity-30 rounded-full shadow-lg" // Increase opacity and size
+              />
+              
               <div className="text-sm font-semibold text-text">{f.title}</div>
               <div className="mt-2 text-sm text-muted">{f.desc}</div>
             </div>
           ))}
         </div>
+
       </section>
 
       {/* HOW IT WORKS */}
