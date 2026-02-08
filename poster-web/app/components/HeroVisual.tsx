@@ -99,7 +99,7 @@ export default function HeroVisual() {
           <div className="w-full p-5 sm:p-6">
             <div className="max-w-sm rounded-2xl border border-border bg-[rgba(15,18,32,0.70)] p-4 backdrop-blur">
               <div className="text-sm font-semibold text-text">
-                Your latest poster will appear here
+                Your featured poster will appear here
               </div>
               <div className="mt-1 text-sm text-muted">
                 Sign in to generate and unlock your personal showcase.
