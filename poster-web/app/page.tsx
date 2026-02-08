@@ -3,7 +3,6 @@ import HeroVisual from "./components/HeroVisual";
 import RecentShowcase from "./components/RecentShowcase";
 import LandingCTA from "./components/LandingCTA";
 
-
 export default function HomePage() {
   return (
     <div className="py-10">
@@ -16,23 +15,46 @@ export default function HomePage() {
               Bedrock-powered • Credits • History
             </div>
 
-            <h1 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-text">
-              Generate stunning AI movie posters
+            <h1 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-text">
+              Generate cinematic AI movie posters in seconds
             </h1>
 
-            <p className="mt-3 max-w-xl text-muted">
-              Create cinematic visuals in seconds. Pick a style, refine your
-              prompt, and generate. Every poster is saved to your history.
+            <p className="mt-4 max-w-xl text-muted">
+              Prompt → poster. Save every generation to history, reuse prompts, and share
+              public links — powered by AWS.
             </p>
 
-            <div className="mt-6 flex flex-wrap gap-3">
+            <div className="mt-5 flex flex-wrap gap-2 text-xs">
+              {[
+                "Public share links",
+                "Reusable prompts",
+                "High-res output",
+                "Fast iterations",
+              ].map((t) => (
+                <span
+                  key={t}
+                  className="rounded-full border border-border bg-surface2/60 px-3 py-1 text-muted"
+                >
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-7 flex flex-wrap items-center gap-3">
               <LandingCTA />
 
               <Link
-                href="/history"
+                href="#showcase"
                 className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
               >
-                View history
+                See examples
+              </Link>
+
+              <Link
+                href="/history"
+                className="text-sm text-muted hover:text-text transition-colors"
+              >
+                View history →
               </Link>
             </div>
           </div>
@@ -96,7 +118,7 @@ export default function HomePage() {
           ].map((f) => (
             <div
               key={f.title}
-              className="rounded-2xl border border-border bg-[rgba(61,255,154,0.12)] p-6 text-center"
+              className="rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
             >
               <div className="text-sm font-semibold text-text">{f.title}</div>
               <div className="mt-2 text-sm text-muted">{f.desc}</div>
@@ -137,7 +159,7 @@ export default function HomePage() {
           ].map((s) => (
             <div
               key={s.title}
-              className="rounded-2xl border border-border bg-[rgba(122,92,255,0.16)] p-6 text-center"
+              className="rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
             >
               <div className="text-sm font-semibold text-text">{s.title}</div>
               <div className="mt-2 text-sm text-muted">{s.desc}</div>
