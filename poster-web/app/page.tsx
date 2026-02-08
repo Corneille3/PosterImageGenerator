@@ -15,7 +15,7 @@ export default function HomePage() {
               Bedrock-powered • Credits • History
             </div>
 
-            <h1 className="mt-4 text-3xl sm:text-5xl font-semibold tracking-tight text-text">
+            <h1 className="mt-4 text-2xl sm:text-4xl font-semibold tracking-tight text-text">
               Generate cinematic AI movie posters in seconds
             </h1>
 
