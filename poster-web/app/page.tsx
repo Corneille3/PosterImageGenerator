@@ -7,61 +7,70 @@ export default function HomePage() {
   return (
     <div className="py-10">
       {/* HERO */}
-      <section className="relative overflow-hidden rounded-3xl border border-border bg-surface/60 p-8 sm:p-10">
-        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2/60 px-3 py-1 text-xs text-muted">
-              <span className="h-2 w-2 rounded-full bg-[rgba(61,255,154,1)] shadow-[0_0_25px_rgba(61,255,154,0.35)]" />
-              Bedrock-powered • Credits • History
-            </div>
+        {/* HERO */}
+        <section className="relative overflow-hidden rounded-3xl border border-border bg-surface/60 p-8 sm:p-10">
+          <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2/60 px-3 py-1 text-xs text-muted
+                              animate-[fadeUp_0.4s_ease-out_forwards]">
+                <span className="h-2 w-2 rounded-full bg-[rgba(61,255,154,1)] shadow-[0_0_25px_rgba(61,255,154,0.35)]" />
+                Bedrock-powered • Credits • History
+              </div>
 
-            <h1 className="mt-4 text-2xl sm:text-4xl font-semibold tracking-tight text-text">
-              Generate cinematic AI movie posters in seconds
-            </h1>
+              <h1 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-text
+                            animate-[fadeUp_0.5s_ease-out_0.1s_forwards]">
+                Generate cinematic AI movie posters in seconds
+              </h1>
 
-            <p className="mt-4 max-w-xl text-muted">
-              Prompt → poster. Save every generation to history, reuse prompts, and share
-              public links — powered by AWS.
-            </p>
+              <p className="mt-4 max-w-xl text-muted
+                            animate-[fadeUp_0.5s_ease-out_0.2s_forwards]">
+                Prompt → poster. Save every generation to history, reuse prompts, and
+                share public links — powered by AWS.
+              </p>
 
-            <div className="mt-5 flex flex-wrap gap-2 text-xs">
-              {[
-                "Public share links",
-                "Reusable prompts",
-                "High-res output",
-                "Fast iterations",
-              ].map((t) => (
-                <span
-                  key={t}
-                  className="rounded-full border border-border bg-surface2/60 px-3 py-1 text-muted"
+              <div className="mt-5 flex flex-wrap gap-2 text-xs
+                              animate-[fadeUp_0.5s_ease-out_0.3s_forwards]">
+                {[
+                  "Public share links",
+                  "Reusable prompts",
+                  "High-res output",
+                  "Fast iterations",
+                ].map((t) => (
+                  <span
+                    key={t}
+                    className="rounded-full border border-border bg-surface2/60 px-3 py-1 text-muted"
+                  >
+                    {t}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-7 flex flex-wrap items-center gap-3
+                              animate-[fadeUp_0.5s_ease-out_0.4s_forwards]">
+                <LandingCTA />
+
+                <Link
+                  href="#showcase"
+                  className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
                 >
-                  {t}
-                </span>
-              ))}
+                  See examples
+                </Link>
+
+                <Link
+                  href="/history"
+                  className="text-sm text-muted hover:text-text transition-colors"
+                >
+                  View history →
+                </Link>
+              </div>
             </div>
 
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <LandingCTA />
-
-              <Link
-                href="#showcase"
-                className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
-              >
-                See examples
-              </Link>
-
-              <Link
-                href="/history"
-                className="text-sm text-muted hover:text-text transition-colors"
-              >
-                View history →
-              </Link>
+            <div className="animate-[fadeUp_0.6s_ease-out_0.2s_forwards]">
+              <HeroVisual />
             </div>
           </div>
+        </section>
 
-          <HeroVisual />
-        </div>
-      </section>
 
       {/* SHOWCASE */}
       <section className="mt-12">
@@ -91,56 +100,57 @@ export default function HomePage() {
       {/* FEATURES */}
       <section className="mt-14">
         <div className="mb-6">
-          <h2
-            id="features"
-            className="scroll-mt-3 text-xl font-semibold tracking-tight text-text"
-          >
+          <h2 id="features" className="scroll-mt-3 text-xl font-semibold tracking-tight text-text">
             Key Features
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted">
-            Everything you need to create high-quality AI-generated movie posters
-            in one place.
+            Everything you need to create high-quality AI-generated movie posters in one place.
           </p>
         </div>
 
-        <div className="grid gap-8 sm:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
               title: "Preset Styles",
               desc:
                 "Not inspired? We got you! Choose from Cinematic, Noir, Horror, Animation and more — each style guides lighting, mood, and composition. Everything you need in one place.",
-              imgSrc: "/images/preset.jpg", // Correct path to the preset image
+              imgSrc: "/images/preset.jpg",
             },
             {
               title: "High Quality",
               desc:
                 "Every image is produced at a resolution suitable for digital and print-ready use. Perfect for posters, social media content, branding visuals, storyboards, and more.",
-              imgSrc: "/images/camera-lens.jpg", // Correct path to the camera-lens image
+              imgSrc: "/images/camera-lens.jpg",
             },
             {
               title: "History",
               desc:
                 "Every generation is automatically saved with prompt and status, making it easy to review, reopen, and reuse past creations.",
-              imgSrc: "/images/folder-icon.png", // Correct path to the logo1 image
+              imgSrc: "/images/folder-icon.png",
             },
           ].map((f) => (
             <div
               key={f.title}
-              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
+              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft
+                        transition-transform duration-300 hover:scale-105 hover:bg-surface2/60"
             >
-              {/* Image in the top-right corner with higher opacity and larger size */}
+              {/* Pulsing glow behind icon */}
+              <div className="absolute top-2 right-2 flex h-14 w-14 items-center justify-center rounded-full 
+                              bg-gradient-to-tr from-[#3dff9a]/40 to-[#7c5cff]/40 blur-[30px] pointer-events-none
+                              animate-pulse-slow" />
+
+              {/* Icon */}
               <img
                 src={f.imgSrc}
                 alt={`${f.title} icon`}
-                className="absolute top-2 right-2 w-12 h-12 opacity-200 bg-white bg-opacity-30 rounded-full shadow-lg" // Increase opacity and size
+                className="relative z-10 w-12 h-12 rounded-full p-2 bg-white/50 shadow-md"
               />
-              
-              <div className="text-sm font-semibold text-text">{f.title}</div>
-              <div className="mt-2 text-sm text-muted">{f.desc}</div>
+
+              <div className="text-sm font-semibold text-text mt-4 break-words">{f.title}</div>
+              <div className="mt-2 text-sm text-muted break-words">{f.desc}</div>
             </div>
           ))}
         </div>
-
       </section>
 
       {/* HOW IT WORKS */}
@@ -154,7 +164,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
               title: "1. Enter Prompt",
@@ -177,21 +187,29 @@ export default function HomePage() {
           ].map((step) => (
             <div
               key={step.title}
-              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
+              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft
+                        transition-transform duration-300 hover:scale-105 hover:bg-surface2/60"
             >
-              {/* Icon in the top-left corner */}
+              {/* Pulsing glow behind icon */}
+              <div className="absolute top-2 right-2 flex h-14 w-14 items-center justify-center rounded-full 
+                              bg-gradient-to-tr from-[#3dff9a]/40 to-[#7c5cff]/40 blur-[30px] pointer-events-none
+                              animate-pulse-slow" />
+
+              {/* Icon */}
               <img
                 src={step.icon}
                 alt={`${step.title} icon`}
-                className="absolute top-2 right-2 w-12 h-12 opacity-120 bg-white bg-opacity-30 rounded-full"
+                className="relative z-10 w-12 h-12 rounded-full p-2 bg-white/50 shadow-md"
               />
-              
-              <div className="text-sm font-semibold text-text">{step.title}</div>
-              <div className="mt-2 text-sm text-muted">{step.desc}</div>
+
+              <div className="text-sm font-semibold text-text mt-4 break-words">{step.title}</div>
+              <div className="mt-2 text-sm text-muted break-words">{step.desc}</div>
             </div>
           ))}
         </div>
       </section>
+
+
 
       {/* CTA */}
       <section className="mt-14">
