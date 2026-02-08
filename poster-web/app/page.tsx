@@ -146,15 +146,11 @@ export default function HomePage() {
       {/* HOW IT WORKS */}
       <section className="mt-14">
         <div className="mb-6">
-          <h2
-            id="how-it-works"
-            className="scroll-mt-1 text-xl font-semibold tracking-tight text-text"
-          >
+          <h2 id="how-it-works" className="scroll-mt-4 text-xl font-semibold tracking-tight text-text">
             How to get the best out of the generator
           </h2>
           <p className="mt-1 max-w-2xl text-sm text-muted">
-            Follow these simple steps to guide the AI and generate
-            cinematic-quality posters.
+            Follow these simple steps to guide the AI and generate cinematic-quality posters.
           </p>
         </div>
 
@@ -164,24 +160,34 @@ export default function HomePage() {
               title: "1. Enter Prompt",
               desc:
                 "Describe the scene, characters, mood, lighting, and genre. The more specific you are, the better the result.",
+              icon: "/images/pen-icon.png",
             },
             {
               title: "2. Choose Style",
               desc:
                 "Select a preset style to guide the visual direction. You can change or clear it at any time.",
+              icon: "/images/palette-icon.png",
             },
             {
               title: "3. Generate Poster",
               desc:
                 "We generate via Bedrock, store the image in S3, and display it instantly. Credits are deducted and the result is saved to history.",
+              icon: "/images/gear-icon.png",
             },
-          ].map((s) => (
+          ].map((step) => (
             <div
-              key={s.title}
-              className="rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
+              key={step.title}
+              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft hover:bg-surface2/50 transition"
             >
-              <div className="text-sm font-semibold text-text">{s.title}</div>
-              <div className="mt-2 text-sm text-muted">{s.desc}</div>
+              {/* Icon in the top-left corner */}
+              <img
+                src={step.icon}
+                alt={`${step.title} icon`}
+                className="absolute top-2 right-2 w-12 h-12 opacity-120 bg-white bg-opacity-30 rounded-full"
+              />
+              
+              <div className="text-sm font-semibold text-text">{step.title}</div>
+              <div className="mt-2 text-sm text-muted">{step.desc}</div>
             </div>
           ))}
         </div>
