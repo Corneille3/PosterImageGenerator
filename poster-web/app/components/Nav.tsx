@@ -30,8 +30,6 @@ function NavLink({
       )}
     >
       {children}
-
-      {/* Underline */}
       <span
         className={cx(
           "absolute left-0 -bottom-1 h-0.5 bg-accent transition-all duration-200",
@@ -48,27 +46,51 @@ export default function Nav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-[rgba(15,18,32,0.95)] backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
+
         {/* Brand */}
         <Link
           href="/"
           className="flex items-center gap-3 transition-transform duration-200 hover:-translate-y-1"
-        >
-          {/* Logo circle */}
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-border bg-surface2 shadow-md transition-transform duration-200 hover:scale-105">
-            <span className="h-3 w-3 rounded-full bg-[rgba(61,255,154,1)] shadow-[0_0_30px_rgba(61,255,154,0.5)] animate-pulse" />
+           >
+          {/* Brand Logo with Dynamic Gradient Glow */}
+          <span
+            className="
+              inline-flex h-14 w-14 items-center justify-center 
+              rounded-2xl border border-white/30 
+              shadow-[0_0_20px_var(--brand-gradient-from)] 
+              animate-pulse-slow 
+              transition-transform duration-200 
+              hover:scale-105 
+              overflow-hidden
+            "
+            style={{
+              // Fallback if CSS variables not supported
+              '--brand-gradient-from': '#3dff9a',
+              '--brand-gradient-to': '#7c5cff',
+            } as React.CSSProperties}
+          >
+            <img
+              src="/images/logo1.jpg"
+              alt="Brand Logo"
+              className="h-12 w-12 object-contain"
+            />
           </span>
 
+
           {/* Brand name gradient */}
-          <span className="text-lg font-bold bg-gradient-to-r from-[#3dff9a] to-[#7c5cff] bg-clip-text text-transparent transition-transform duration-200 hover:scale-105">
+          <span className="text-1xl sm:text-2xl font-extrabold bg-gradient-to-r from-[#3dff9a] via-[#7c5cff] to-[#3dff9a] bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(61,255,154,0.6)] transition-transform duration-200 hover:scale-105">
             Poster Generator
           </span>
 
           {/* Beta badge */}
-          <span className="ml-1 inline-block rounded-full bg-accent px-2 text-xs font-semibold text-white
-                           transition-transform duration-200 hover:scale-110 hover:bg-accent2">
+          <span className="ml-1 inline-block rounded-full bg-accent px-3 py-1 text-xs sm:text-sm font-semibold text-white
+                          shadow-[0_0_10px_rgba(122,92,255,0.5)]
+                          animate-pulse-slow
+                          transition-transform duration-200 hover:scale-110 hover:bg-accent2">
             Beta
           </span>
         </Link>
+
 
         {/* Nav links */}
         <nav className="hidden md:flex items-center gap-6">
@@ -111,7 +133,7 @@ export default function Nav() {
                        transition-all duration-200 active:translate-y-0"
           >
             <img
-              src="/images/poster-icon.png" // make sure the file exists in /public/images
+              src="/images/poster-icon.png"
               alt="Poster Generator Icon"
               className="w-5 h-5"
             />
