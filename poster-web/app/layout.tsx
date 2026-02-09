@@ -70,6 +70,7 @@ export default function RootLayout({
           {/* Vercel Speed Insights */}
           <SpeedInsights />
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );
