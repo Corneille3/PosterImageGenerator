@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Providers from "./providers";
 import Nav from "./components/Nav";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,10 +31,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-bg text-text min-h-dvh`}
       >
         {/* AI Watermark / Glow Background */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none fixed inset-0 -z-10"
-        >
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
           <div className="absolute inset-0 bg-[#03050a]" />
           <div
             className="absolute inset-0 opacity-90"
@@ -43,7 +41,6 @@ export default function RootLayout({
               filter: "blur(1.2px)",
             }}
           />
-          {/* subtle vignette */}
           <div className="absolute inset-0 bg-[radial-gradient(1200px_600px_at_50%_0%,rgba(255,255,255,0.06),transparent_60%)]" />
         </div>
 
@@ -58,9 +55,7 @@ export default function RootLayout({
           {/* Footer */}
           <footer className="mt-16 border-t border-border bg-surface/40">
             <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 text-sm text-muted flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <span>
-                © {new Date().getFullYear()} Poster Generator
-              </span>
+              <span>© {new Date().getFullYear()} Poster Generator</span>
               <div className="flex gap-4">
                 <a className="hover:text-text" href="#">
                   Terms
@@ -71,6 +66,9 @@ export default function RootLayout({
               </div>
             </div>
           </footer>
+
+          {/* Vercel Speed Insights */}
+          <SpeedInsights />
         </Providers>
       </body>
     </html>
