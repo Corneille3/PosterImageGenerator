@@ -56,6 +56,24 @@ export const metadata: Metadata = {
         height: 630,
         alt: "Kornea Poster AI – AI Movie Poster Generator",
       },
+      {
+        url: new URL("/images/joy2.png", siteUrl).toString(),
+        width: 1200,
+        height: 630,
+        alt: "Poster 2",
+      },
+      {
+        url: new URL("/images/joy3.png", siteUrl).toString(),
+        width: 1200,
+        height: 630,
+        alt: "Poster 3",
+      },
+      {
+        url: new URL("/images/joy4.png", siteUrl).toString(),
+        width: 1200,
+        height: 630,
+        alt: "Poster 4",
+      },
     ],
   },
 
@@ -64,7 +82,12 @@ export const metadata: Metadata = {
     title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
     description:
       "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
-    images: [new URL("/images/joy1.png", siteUrl).toString()],
+    images: [
+      new URL("/images/joy1.png", siteUrl).toString(),
+      new URL("/images/joy2.png", siteUrl).toString(),
+      new URL("/images/joy3.png", siteUrl).toString(),
+      new URL("/images/joy4.png", siteUrl).toString(),
+    ],
   },
 };
 
@@ -73,8 +96,56 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const structuredData = {
+    "@context": "http://schema.org",
+    "@type": "WebPage",
+    "name": "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+    "description":
+      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+    "url": siteUrl,
+    "image": [
+      {
+        "@type": "ImageObject",
+        "url": new URL("/images/joy1.png", siteUrl).toString(),
+        "width": 1200,
+        "height": 630,
+        "alt": "Kornea Poster AI – AI Movie Poster Generator",
+      },
+      {
+        "@type": "ImageObject",
+        "url": new URL("/images/joy2.png", siteUrl).toString(),
+        "width": 1200,
+        "height": 630,
+        "alt": "Poster 2",
+      },
+      {
+        "@type": "ImageObject",
+        "url": new URL("/images/joy3.png", siteUrl).toString(),
+        "width": 1200,
+        "height": 630,
+        "alt": "Poster 3",
+      },
+      {
+        "@type": "ImageObject",
+        "url": new URL("/images/joy4.png", siteUrl).toString(),
+        "width": 1200,
+        "height": 630,
+        "alt": "Poster 4",
+      },
+    ],
+  };
+
   return (
     <html lang="en">
+      <head>
+        {/* Inject structured data for SEO */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(structuredData),
+          }}
+        ></script>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-bg text-text min-h-dvh`}
       >
