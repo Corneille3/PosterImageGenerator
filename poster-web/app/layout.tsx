@@ -31,6 +31,35 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  alternates: {
+    canonical: "/",
+  },
+
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "Kornea Poster AI",
+    title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+    description:
+      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+    images: [
+      {
+        url: "/joy1.png",
+        width: 1200,
+        height: 630,
+        alt: "Kornea Poster AI",
+      },
+    ],
+  },
+  
+  twitter: {
+    card: "summary_large_image",
+    title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+    description:
+      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+    images: ["/joy1.png"],
+  },
+
 };
 
 export default function RootLayout({
