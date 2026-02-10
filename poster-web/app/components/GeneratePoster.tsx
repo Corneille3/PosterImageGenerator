@@ -94,7 +94,6 @@ const ASPECT_RATIOS = [
 const OUTPUT_FORMATS = [
   { value: "png", label: "PNG" },
   { value: "jpeg", label: "JPEG" },
-  { value: "webp", label: "WEBP" },
 ] as const;
 
 type AspectRatio = (typeof ASPECT_RATIOS)[number]["value"];
