@@ -44,10 +44,10 @@ export const metadata: Metadata = {
       "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
     images: [
       {
-        url: "/joy1.png",
+        url: "/images/joy1.png",
         width: 1200,
         height: 630,
-        alt: "Kornea Poster AI",
+        alt: "Kornea Poster AI – AI Movie Poster Generator",
       },
     ],
   },
@@ -57,7 +57,7 @@ export const metadata: Metadata = {
     title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
     description:
       "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
-    images: ["/joy1.png"],
+    images: ["/images/joy1.png"],
   },
 
 };
