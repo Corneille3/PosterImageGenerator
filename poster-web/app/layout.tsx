@@ -31,6 +31,38 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+
+  // ✅ Make canonical absolute (more reliable across crawlers)
+  alternates: {
+    canonical: siteUrl,
+  },
+
+  // ✅ Make OG url + image absolute
+  openGraph: {
+    type: "website",
+    url: siteUrl,
+    siteName: "Kornea Poster AI",
+    title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+    description:
+      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+    images: [
+      {
+        url: new URL("/images/joy1.png", siteUrl).toString(),
+        width: 1200,
+        height: 630,
+        alt: "Kornea Poster AI – AI Movie Poster Generator",
+      },
+    ],
+  },
+
+  // ✅ Ensure twitter tags emit exactly what you want
+  twitter: {
+    card: "summary_large_image",
+    title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+    description:
+      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+    images: [new URL("/images/joy1.png", siteUrl).toString()],
+  },
 };
 
 export default function RootLayout({
@@ -44,7 +76,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-bg text-text min-h-dvh`}
       >
         {/* AI Watermark / Glow Background */}
-        <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-0 -z-10"
+        >
           <div className="absolute inset-0 bg-[#03050a]" />
           <div
             className="absolute inset-0 opacity-90"
