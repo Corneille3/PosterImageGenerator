@@ -19,7 +19,6 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://kornea-poster-ai.c
   .trim()
   .replace(/\/$/, "");
 
-
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
 
