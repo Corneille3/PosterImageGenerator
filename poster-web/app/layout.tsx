@@ -15,9 +15,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://kornea-poster-ai.com";
+
 export const metadata: Metadata = {
-  title: "Poster Generator",
-  description: "AI poster generator using AWS + Bedrock",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+    template: "%s — Kornea Poster AI",
+  },
+  description:
+    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+  applicationName: "Kornea Poster AI",
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({

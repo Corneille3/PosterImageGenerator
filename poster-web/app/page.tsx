@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import HeroVisual from "./components/HeroVisual";
 import RecentShowcase from "./components/RecentShowcase";
 import LandingCTA from "./components/LandingCTA";
+
+export const metadata: Metadata = {
+  title: "AI Movie Poster Generator",
+  description:
+    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+};
+
 
 export default function HomePage() {
   return (
