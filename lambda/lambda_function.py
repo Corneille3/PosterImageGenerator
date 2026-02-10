@@ -22,6 +22,10 @@ KEY_PREFIX = os.environ.get("KEY_PREFIX", "generated/").strip()
 URL_EXPIRES_SECONDS = int(os.environ.get("URL_EXPIRES_SECONDS", "3600"))
 
 # DynamoDB (credits + history)
+
+DAILY_CREDITS = int(os.environ.get("DAILY_CREDITS", "10"))
+CREDITS_RESET_SECONDS = int(os.environ.get("CREDITS_RESET_SECONDS", "86400"))
+
 DDB_TABLE_NAME = os.environ.get("DDB_TABLE_NAME", "").strip()
 INITIAL_CREDITS = int(os.environ.get("INITIAL_CREDITS", "25"))
 HISTORY_TTL_DAYS = int(os.environ.get("HISTORY_TTL_DAYS", "30"))
@@ -151,103 +155,115 @@ def get_history_item_by_sk(sub: str, target_sk: str):
 
 
 def get_credits(sub: str) -> int:
-    """
-    Read credits without modifying them.
-    If credits item doesn't exist yet, return INITIAL_CREDITS to match lazy-init behavior.
-    If the reset time has passed, refill credits.
-    """
     if not table:
         return 0
 
-    resp = table.get_item(Key=_credits_key(sub))
+    now = int(time.time())
+    key = _credits_key(sub)
+
+    resp = table.get_item(Key=key)
     item = resp.get("Item") or {}
 
     credits = item.get("credits")
-    reset_at = item.get("resetAt")  # Retrieve resetAt from DynamoDB
+    reset_at = item.get("resetAt")
 
-    # Lazy init if item is not found
+    # If old record has no credits -> behave like lazy init (but now DAILY_CREDITS)
     if credits is None:
-        return int(INITIAL_CREDITS)
-
-    now = int(time.time())  # Current timestamp
-
-    # If resetAt is passed, refill the credits to the initial amount
-    if reset_at and now >= int(reset_at):
-        new_reset_at = now + 86400  # Set next resetAt time (24 hours from now)
+        # create/reset in-place best-effort
         try:
             table.update_item(
-                Key=_credits_key(sub),
+                Key=key,
+                UpdateExpression="SET credits = if_not_exists(credits, :c), resetAt = if_not_exists(resetAt, :r), updatedAt = :u",
+                ExpressionAttributeValues={
+                    ":c": DAILY_CREDITS,
+                    ":r": now + CREDITS_RESET_SECONDS,
+                    ":u": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        except Exception:
+            pass
+        return DAILY_CREDITS
+
+    # If resetAt missing, treat it like expired and set one
+    if reset_at is None:
+        try:
+            table.update_item(
+                Key=key,
+                UpdateExpression="SET resetAt = :r, updatedAt = :u",
+                ExpressionAttributeValues={
+                    ":r": now + CREDITS_RESET_SECONDS,
+                    ":u": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+        except Exception:
+            pass
+        return int(credits)
+
+    # Expired -> refill to DAILY_CREDITS
+    if now >= int(reset_at):
+        try:
+            table.update_item(
+                Key=key,
                 UpdateExpression="SET credits = :c, resetAt = :r, updatedAt = :u",
                 ExpressionAttributeValues={
-                    ":c": {"N": str(INITIAL_CREDITS)},
-                    ":r": {"N": str(new_reset_at)},
-                    ":u": {"N": str(now)},
+                    ":c": DAILY_CREDITS,
+                    ":r": now + CREDITS_RESET_SECONDS,
+                    ":u": datetime.now(timezone.utc).isoformat(),
                 },
-                ConditionExpression="attribute_exists(pk) AND attribute_exists(sk)",
             )
-        except ClientError:
-            pass  # If update fails, just return existing credits
+            return DAILY_CREDITS
+        except Exception:
+            return int(credits)
 
     return int(credits)
 
-
 def reserve_credit_or_fail(sub: str) -> int:
-    """
-    Atomically:
-      - initializes credits if missing (INITIAL_CREDITS)
-      - decrements by 1
-      - blocks if credits == 0
-      - checks if credits need to be reset
-    Returns remaining credits AFTER decrement.
-    """
     if not table:
         return -1
 
+    now = int(time.time())
+    key = _credits_key(sub)
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # Attempt A: expired (or missing) -> reset to DAILY_CREDITS then decrement (remaining = DAILY_CREDITS - 1)
     try:
-        # Fetch credits and check if reset is needed
-        resp = table.get_item(Key=_credits_key(sub))
-        item = resp.get("Item")
-        if not item:
-            return int(INITIAL_CREDITS)
+        resp = table.update_item(
+            Key=key,
+            UpdateExpression="SET credits = :new, resetAt = :r, updatedAt = :u",
+            ConditionExpression="attribute_not_exists(resetAt) OR resetAt <= :now",
+            ExpressionAttributeValues={
+                ":new": DAILY_CREDITS - 1,
+                ":r": now + CREDITS_RESET_SECONDS,
+                ":u": now_iso,
+                ":now": now,
+            },
+            ReturnValues="UPDATED_NEW",
+        )
+        return int(resp["Attributes"]["credits"])
+    except ClientError as e:
+        if e.response["Error"]["Code"] != "ConditionalCheckFailedException":
+            raise
 
-        credits = int(item["credits"])
-        reset_at = int(item["resetAt"])
-
-        # Check if credits need to be reset
-        now = int(time.time())
-        if now >= reset_at:
-            # Reset credits to INITIAL_CREDITS if reset time has passed
-            new_reset_at = now + 86400  # 24 hours from now
-            table.update_item(
-                Key=_credits_key(sub),
-                UpdateExpression="SET credits = :c, resetAt = :r, updatedAt = :u",
-                ExpressionAttributeValues={
-                    ":c": {"N": str(INITIAL_CREDITS)},
-                    ":r": {"N": str(new_reset_at)},
-                    ":u": {"N": str(now)},
-                },
-                ConditionExpression="attribute_exists(pk) AND attribute_exists(sk)",
-            )
-            credits = INITIAL_CREDITS  # Reset credits
-
-        # Decrement credits
-        if credits > 0:
-            updated_credits = credits - 1
-            table.update_item(
-                Key=_credits_key(sub),
-                UpdateExpression="SET credits = :c, updatedAt = :u",
-                ExpressionAttributeValues={
-                    ":c": {"N": str(updated_credits)},
-                    ":u": {"N": str(now)},
-                },
-                ConditionExpression="attribute_exists(pk) AND attribute_exists(sk)",
-            )
-            return updated_credits
-        else:
+    # Attempt B: not expired -> decrement if credits > 0 (and lazy init if missing credits/resetAt)
+    try:
+        resp = table.update_item(
+            Key=key,
+            UpdateExpression="SET credits = if_not_exists(credits, :init) - :one, resetAt = if_not_exists(resetAt, :r), updatedAt = :u",
+            ConditionExpression="attribute_not_exists(credits) OR credits > :zero",
+            ExpressionAttributeValues={
+                ":init": DAILY_CREDITS,
+                ":one": 1,
+                ":zero": 0,
+                ":r": now + CREDITS_RESET_SECONDS,
+                ":u": now_iso,
+            },
+            ReturnValues="UPDATED_NEW",
+        )
+        return int(resp["Attributes"]["credits"])
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
             raise ValueError("OUT_OF_CREDITS")
-    except ClientError:
         raise
-
 
 def refund_credit_best_effort(sub: str):
     if not table:
