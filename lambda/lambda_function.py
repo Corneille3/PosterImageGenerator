@@ -154,6 +154,7 @@ def get_credits(sub: str) -> int:
     """
     Read credits without modifying them.
     If credits item doesn't exist yet, return INITIAL_CREDITS to match lazy-init behavior.
+    If the reset time has passed, refill credits.
     """
     if not table:
         return 0
@@ -162,8 +163,30 @@ def get_credits(sub: str) -> int:
     item = resp.get("Item") or {}
 
     credits = item.get("credits")
+    reset_at = item.get("resetAt")  # Retrieve resetAt from DynamoDB
+
+    # Lazy init if item is not found
     if credits is None:
         return int(INITIAL_CREDITS)
+
+    now = int(time.time())  # Current timestamp
+
+    # If resetAt is passed, refill the credits to the initial amount
+    if reset_at and now >= int(reset_at):
+        new_reset_at = now + 86400  # Set next resetAt time (24 hours from now)
+        try:
+            table.update_item(
+                Key=_credits_key(sub),
+                UpdateExpression="SET credits = :c, resetAt = :r, updatedAt = :u",
+                ExpressionAttributeValues={
+                    ":c": {"N": str(INITIAL_CREDITS)},
+                    ":r": {"N": str(new_reset_at)},
+                    ":u": {"N": str(now)},
+                },
+                ConditionExpression="attribute_exists(pk) AND attribute_exists(sk)",
+            )
+        except ClientError:
+            pass  # If update fails, just return existing credits
 
     return int(credits)
 
@@ -174,28 +197,55 @@ def reserve_credit_or_fail(sub: str) -> int:
       - initializes credits if missing (INITIAL_CREDITS)
       - decrements by 1
       - blocks if credits == 0
+      - checks if credits need to be reset
     Returns remaining credits AFTER decrement.
     """
     if not table:
         return -1
 
     try:
-        resp = table.update_item(
-            Key=_credits_key(sub),
-            UpdateExpression="SET credits = if_not_exists(credits, :init) - :one, updatedAt = :now",
-            ConditionExpression="attribute_not_exists(credits) OR credits > :zero",
-            ExpressionAttributeValues={
-                ":init": INITIAL_CREDITS,
-                ":one": 1,
-                ":zero": 0,
-                ":now": datetime.now(timezone.utc).isoformat(),
-            },
-            ReturnValues="UPDATED_NEW",
-        )
-        return int(resp["Attributes"]["credits"])
-    except ClientError as e:
-        if e.response["Error"]["Code"] == "ConditionalCheckFailedException":
+        # Fetch credits and check if reset is needed
+        resp = table.get_item(Key=_credits_key(sub))
+        item = resp.get("Item")
+        if not item:
+            return int(INITIAL_CREDITS)
+
+        credits = int(item["credits"])
+        reset_at = int(item["resetAt"])
+
+        # Check if credits need to be reset
+        now = int(time.time())
+        if now >= reset_at:
+            # Reset credits to INITIAL_CREDITS if reset time has passed
+            new_reset_at = now + 86400  # 24 hours from now
+            table.update_item(
+                Key=_credits_key(sub),
+                UpdateExpression="SET credits = :c, resetAt = :r, updatedAt = :u",
+                ExpressionAttributeValues={
+                    ":c": {"N": str(INITIAL_CREDITS)},
+                    ":r": {"N": str(new_reset_at)},
+                    ":u": {"N": str(now)},
+                },
+                ConditionExpression="attribute_exists(pk) AND attribute_exists(sk)",
+            )
+            credits = INITIAL_CREDITS  # Reset credits
+
+        # Decrement credits
+        if credits > 0:
+            updated_credits = credits - 1
+            table.update_item(
+                Key=_credits_key(sub),
+                UpdateExpression="SET credits = :c, updatedAt = :u",
+                ExpressionAttributeValues={
+                    ":c": {"N": str(updated_credits)},
+                    ":u": {"N": str(now)},
+                },
+                ConditionExpression="attribute_exists(pk) AND attribute_exists(sk)",
+            )
+            return updated_credits
+        else:
             raise ValueError("OUT_OF_CREDITS")
+    except ClientError:
         raise
 
 
