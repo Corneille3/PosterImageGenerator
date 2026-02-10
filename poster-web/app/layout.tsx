@@ -16,28 +16,34 @@ const geistMono = Geist_Mono({
 });
 
 const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://kornea-poster-ai.com";
+  (process.env.NEXT_PUBLIC_SITE_URL ?? "https://kornea-poster-ai.com").replace(
+    /\/$/,
+    ""
+  );
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
+
   title: {
     default: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
     template: "%s — Kornea Poster AI",
   },
+
   description:
     "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+
   applicationName: "Kornea Poster AI",
+
   robots: {
     index: true,
     follow: true,
   },
 
-  // ✅ Make canonical absolute (more reliable across crawlers)
+  // ✅ Absolute canonical
   alternates: {
-    canonical: siteUrl,
+    canonical: new URL(siteUrl),
   },
 
-  // ✅ Make OG url + image absolute
   openGraph: {
     type: "website",
     url: siteUrl,
@@ -55,7 +61,6 @@ export const metadata: Metadata = {
     ],
   },
 
-  // ✅ Ensure twitter tags emit exactly what you want
   twitter: {
     card: "summary_large_image",
     title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
