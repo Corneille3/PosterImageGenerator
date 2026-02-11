@@ -207,17 +207,29 @@ def reserve_credit_or_fail(sub: str) -> int:
         # Fetch credits and check if reset is needed
         resp = table.get_item(Key=_credits_key(sub))
         item = resp.get("Item")
+        
+        # If no item exists, initialize with DAILY_CREDITS
         if not item:
-            return DAILY_CREDITS  # Return DAILY_CREDITS if no item exists
+            table.put_item(
+                Item={
+                    "pk": _pk(sub),
+                    "sk": "CREDITS",
+                    "credits": DAILY_CREDITS,
+                    "resetAt": int(time.time()) + 86400,  # Set reset time for 24 hours from now
+                    "updatedAt": int(time.time())
+                }
+            )
+            return DAILY_CREDITS  # Return DAILY_CREDITS
 
-        credits = int(item["credits"])
-        reset_at = int(item["resetAt"])
+        credits = int(item.get("credits", DAILY_CREDITS))  # Default to DAILY_CREDITS if missing
 
-        # Check if credits need to be reset
-        now = int(time.time())
-        if now >= reset_at:
-            # Reset credits to DAILY_CREDITS if reset time has passed
-            new_reset_at = now + 86400  # 24 hours from now
+        reset_at = item.get("resetAt", 0)  # Use 0 if resetAt is missing
+
+        now = int(time.time())  # Current timestamp
+
+        # If resetAt has passed, refill the credits to DAILY_CREDITS
+        if now >= int(reset_at):
+            new_reset_at = now + 86400  # Set next resetAt time (24 hours from now)
             table.update_item(
                 Key=_credits_key(sub),
                 UpdateExpression="SET credits = :c, resetAt = :r, updatedAt = :u",
@@ -242,11 +254,13 @@ def reserve_credit_or_fail(sub: str) -> int:
                 },
                 ConditionExpression="attribute_exists(pk) AND attribute_exists(sk)",
             )
-            return updated_credits
+            return updated_credits  # Return remaining credits after decrement
         else:
             raise ValueError("OUT_OF_CREDITS")
-    except ClientError:
+    except ClientError as e:
+        print(f"Error during DynamoDB operation: {e}")
         raise
+
 
 def refund_credit_best_effort(sub: str):
     if not table:
