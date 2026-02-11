@@ -35,7 +35,7 @@ variable "api_route_path" {
 #Add variables for credits/history
 variable "initial_credits" {
   type    = number
-  default = 25
+  default = 10
 }
 
 variable "history_ttl_days" {

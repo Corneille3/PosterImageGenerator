@@ -10,6 +10,7 @@ from boto3.dynamodb.conditions import Key, Attr
 from datetime import datetime, timezone, timedelta
 from botocore.config import Config
 from botocore.exceptions import ClientError
+DAILY_CREDITS = int(os.environ.get("DAILY_CREDITS", "10"))
 
 # Regions
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", "us-west-2")
@@ -23,7 +24,7 @@ URL_EXPIRES_SECONDS = int(os.environ.get("URL_EXPIRES_SECONDS", "3600"))
 
 # DynamoDB (credits + history)
 DDB_TABLE_NAME = os.environ.get("DDB_TABLE_NAME", "").strip()
-INITIAL_CREDITS = int(os.environ.get("INITIAL_CREDITS", "25"))
+INITIAL_CREDITS = int(os.environ.get("INITIAL_CREDITS", "10"))
 HISTORY_TTL_DAYS = int(os.environ.get("HISTORY_TTL_DAYS", "30"))
 
 # AWS clients
@@ -188,7 +189,6 @@ def get_credits(sub: str) -> int:
     return int(credits)
 
 
-# Retrieve DAILY_CREDITS from environment variables
 DAILY_CREDITS = int(os.environ.get("DAILY_CREDITS", "10"))  # Default to 10 if not set
 
 def reserve_credit_or_fail(sub: str) -> int:
@@ -208,23 +208,25 @@ def reserve_credit_or_fail(sub: str) -> int:
         resp = table.get_item(Key=_credits_key(sub))
         item = resp.get("Item")
         
-        # If no item exists, initialize with DAILY_CREDITS
+        # If no item exists, initialize with DAILY_CREDITS and set resetAt to 24 hours from now
         if not item:
             table.put_item(
                 Item={
                     "pk": _pk(sub),
                     "sk": "CREDITS",
-                    "credits": DAILY_CREDITS,
+                    "credits": DAILY_CREDITS,  # Use DAILY_CREDITS for new users
                     "resetAt": int(time.time()) + 86400,  # Set reset time for 24 hours from now
                     "updatedAt": int(time.time())
                 }
             )
-            return DAILY_CREDITS  # Return DAILY_CREDITS
+            return DAILY_CREDITS  # Return DAILY_CREDITS for the first time
 
         credits = int(item.get("credits", DAILY_CREDITS))  # Default to DAILY_CREDITS if missing
 
-        reset_at = item.get("resetAt", 0)  # Use 0 if resetAt is missing
+        # Fetch 'resetAt' value, and default to 0 if missing
+        reset_at = item.get("resetAt", 0)
 
+        # If resetAt is missing or reset, refill credits to DAILY_CREDITS
         now = int(time.time())  # Current timestamp
 
         # If resetAt has passed, refill the credits to DAILY_CREDITS
@@ -234,7 +236,7 @@ def reserve_credit_or_fail(sub: str) -> int:
                 Key=_credits_key(sub),
                 UpdateExpression="SET credits = :c, resetAt = :r, updatedAt = :u",
                 ExpressionAttributeValues={
-                    ":c": DAILY_CREDITS,
+                    ":c": DAILY_CREDITS,  # Use DAILY_CREDITS
                     ":r": new_reset_at,
                     ":u": now,
                 },
@@ -242,7 +244,7 @@ def reserve_credit_or_fail(sub: str) -> int:
             )
             credits = DAILY_CREDITS  # Reset credits to DAILY_CREDITS
 
-        # Decrement credits
+        # Decrement credits if greater than 0
         if credits > 0:
             updated_credits = credits - 1
             table.update_item(
