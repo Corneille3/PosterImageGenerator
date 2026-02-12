@@ -58,7 +58,7 @@ export default function ClientHomePage() {
               <LandingCTA />
 
               <Link
-                href="#showcasestrip"
+                href="#showcase-strip"
                 className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
               >
                 See examples
