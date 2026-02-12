@@ -28,29 +28,46 @@ export default function ShowcaseStrip() {
 
   const imagesPerPage = isMobile ? 1 : 3;
 
-  const scrollRight = () => {
-    if (containerRef.current) {
-      const totalImages = EXAMPLES.length;
-      const maxIndex = totalImages - imagesPerPage;
-      const newIndex = Math.min(currentIndex + 1, maxIndex);
-      setCurrentIndex(newIndex);
-      containerRef.current.scrollTo({
-        left: containerRef.current.clientWidth * newIndex,
-        behavior: "smooth",
-      });
-    }
-  };
+const scrollRight = () => {
+  if (!containerRef.current) return;
 
-  const scrollLeft = () => {
-    if (containerRef.current) {
-      const newIndex = Math.max(currentIndex - 1, 0);
-      setCurrentIndex(newIndex);
-      containerRef.current.scrollTo({
-        left: containerRef.current.clientWidth * newIndex,
-        behavior: "smooth",
-      });
-    }
-  };
+  const container = containerRef.current;
+  const cardWidth = container.firstElementChild?.clientWidth || 0;
+  const gap = 24; // gap-6 = 1.5rem = 24px
+
+  const scrollAmount = cardWidth + gap;
+
+  const totalImages = EXAMPLES.length;
+  const maxIndex = totalImages - imagesPerPage;
+  const newIndex = Math.min(currentIndex + 1, maxIndex);
+
+  setCurrentIndex(newIndex);
+
+  container.scrollTo({
+    left: scrollAmount * newIndex,
+    behavior: "smooth",
+  });
+};
+
+const scrollLeft = () => {
+  if (!containerRef.current) return;
+
+  const container = containerRef.current;
+  const cardWidth = container.firstElementChild?.clientWidth || 0;
+  const gap = 24;
+
+  const scrollAmount = cardWidth + gap;
+
+  const newIndex = Math.max(currentIndex - 1, 0);
+
+  setCurrentIndex(newIndex);
+
+  container.scrollTo({
+    left: scrollAmount * newIndex,
+    behavior: "smooth",
+  });
+};
+
 
   return (
     <section
@@ -144,7 +161,7 @@ export default function ShowcaseStrip() {
 
         {/* Mobile swipe hint */}
         {isMobile && (
-          <div className="absolute right-4 bottom-2 text-xs text-muted animate-bounce">
+          <div className="absolute right-4 bottom-2 text-xs text-muted opacity-80 animate-pulse">
             Swipe →
           </div>
         )}
