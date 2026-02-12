@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 
-// Example images
 const EXAMPLES = [
   { src: "/images/dragon.png", alt: "Animation poster" },
   { src: "/images/catering1.png", alt: "Cinematic poster example" },
@@ -20,18 +19,12 @@ export default function ShowcaseStrip() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imagesPerPage, setImagesPerPage] = useState(3);
 
-  // Adjust images per page based on screen width
   useEffect(() => {
     const updateLayout = () => {
-      if (window.innerWidth < 640) {
-        setImagesPerPage(1); // mobile: show 1 large image
-      } else if (window.innerWidth < 1024) {
-        setImagesPerPage(2); // tablet: 2 images
-      } else {
-        setImagesPerPage(3); // desktop: 3 images
-      }
+      if (window.innerWidth < 640) setImagesPerPage(1);
+      else if (window.innerWidth < 1024) setImagesPerPage(2);
+      else setImagesPerPage(3);
     };
-
     updateLayout();
     window.addEventListener("resize", updateLayout);
     return () => window.removeEventListener("resize", updateLayout);
@@ -42,14 +35,11 @@ export default function ShowcaseStrip() {
     setCurrentIndex((prev) => Math.min(prev + 1, maxIndex));
   };
 
-  const scrollLeft = () => {
-    setCurrentIndex((prev) => Math.max(prev - 1, 0));
-  };
+  const scrollLeft = () => setCurrentIndex((prev) => Math.max(prev - 1, 0));
 
   return (
     <section className="mt-16">
       <div className="max-w-6xl mx-auto px-6">
-        {/* Section Header */}
         <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-8">
           See What You Can Create — click on{" "}
           <Link
@@ -61,7 +51,6 @@ export default function ShowcaseStrip() {
           for more images
         </h2>
 
-        {/* Showcase Grid */}
         <div className="relative">
           <div
             ref={containerRef}
@@ -81,18 +70,3 @@ export default function ShowcaseStrip() {
                   className="w-full h-auto object-cover rounded-2xl"
                   priority={index === 0}
                 />
-              </div>
-            ))}
-          </div>
-
-          {/* Left Button */}
-          <button
-            onClick={scrollLeft}
-            disabled={currentIndex === 0}
-            className={`absolute left-2 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-50 hover:bg-opacity-100 p-3 rounded-full shadow-md transition-all duration-200 ${
-              currentIndex === 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-            }`}
-            aria-label="Scroll left"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="
