@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 
+// Example images
 const EXAMPLES = [
   { src: "/images/dragon.png", alt: "Animation poster" },
   { src: "/images/catering1.png", alt: "Cinematic poster example" },
@@ -19,27 +20,41 @@ export default function ShowcaseStrip() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imagesPerPage, setImagesPerPage] = useState(3);
 
+  // Responsive: 1 image on mobile, 3 on desktop
   useEffect(() => {
-    const updateLayout = () => {
-      if (window.innerWidth < 640) setImagesPerPage(1);
-      else if (window.innerWidth < 1024) setImagesPerPage(2);
-      else setImagesPerPage(3);
+    const updateImagesPerPage = () => {
+      setImagesPerPage(window.innerWidth < 768 ? 1 : 3);
     };
-    updateLayout();
-    window.addEventListener("resize", updateLayout);
-    return () => window.removeEventListener("resize", updateLayout);
+    updateImagesPerPage();
+    window.addEventListener("resize", updateImagesPerPage);
+    return () => window.removeEventListener("resize", updateImagesPerPage);
   }, []);
 
+  // Scroll container manually whenever currentIndex changes
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const container = containerRef.current;
+    const childWidth = container.scrollWidth / EXAMPLES.length;
+    container.scrollTo({
+      left: childWidth * currentIndex,
+      behavior: "smooth",
+    });
+  }, [currentIndex]);
+
   const scrollRight = () => {
-    const maxIndex = EXAMPLES.length - imagesPerPage;
-    setCurrentIndex((prev) => Math.min(prev + 1, maxIndex));
+    setCurrentIndex((prev) =>
+      Math.min(prev + 1, EXAMPLES.length - imagesPerPage)
+    );
   };
 
-  const scrollLeft = () => setCurrentIndex((prev) => Math.max(prev - 1, 0));
+  const scrollLeft = () => {
+    setCurrentIndex((prev) => Math.max(prev - 1, 0));
+  };
 
   return (
     <section className="mt-16">
       <div className="max-w-6xl mx-auto px-6">
+        {/* Section Header */}
         <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-8">
           See What You Can Create — click on{" "}
           <Link
@@ -52,15 +67,17 @@ export default function ShowcaseStrip() {
         </h2>
 
         <div className="relative">
+          {/* Image container */}
           <div
             ref={containerRef}
-            className="flex overflow-x-auto gap-6 snap-x snap-mandatory scrollbar-hide"
-            style={{ scrollBehavior: "smooth" }}
+            className="flex overflow-x-auto gap-6 scroll-smooth snap-x snap-mandatory"
+            style={{ scrollbarWidth: "none" }} // hide scrollbar on Firefox
           >
             {EXAMPLES.map((item, index) => (
               <div
                 key={index}
-                className="flex-shrink-0 w-full sm:w-[45%] lg:w-[32%] snap-center rounded-2xl border border-border bg-surface/60 shadow-soft transition-transform duration-300 hover:scale-[1.03]"
+                className={`snap-start flex-shrink-0 rounded-2xl border border-border bg-surface/60 shadow-soft transition-transform duration-300 hover:scale-[1.03]`}
+                style={{ width: imagesPerPage === 1 ? "100%" : "calc((100% - 1.5rem*2)/3)" }}
               >
                 <Image
                   src={item.src}
@@ -74,13 +91,12 @@ export default function ShowcaseStrip() {
             ))}
           </div>
 
-          {/* Left Button */}
+          {/* Left arrow - hidden on mobile */}
           <button
             onClick={scrollLeft}
             disabled={currentIndex === 0}
-            className={`absolute left-2 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-50 hover:bg-opacity-100 p-3 rounded-full shadow-md transition-all duration-200 ${
-              currentIndex === 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-            }`}
+            className={`hidden md:flex absolute left-0 top-1/2 transform -translate-y-1/2 z-50 bg-white bg-opacity-50 hover:bg-opacity-100 p-3 rounded-full shadow-md transition-all duration-200 
+              ${currentIndex === 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
             aria-label="Scroll left"
           >
             <svg
@@ -93,19 +109,18 @@ export default function ShowcaseStrip() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth="2"
+                strokeWidth={2}
                 d="M15 19l-7-7 7-7"
               />
             </svg>
           </button>
 
-          {/* Right Button */}
+          {/* Right arrow - hidden on mobile */}
           <button
             onClick={scrollRight}
             disabled={currentIndex >= EXAMPLES.length - imagesPerPage}
-            className={`absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-50 hover:bg-opacity-100 p-3 rounded-full shadow-md transition-all duration-200 ${
-              currentIndex >= EXAMPLES.length - imagesPerPage ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-            }`}
+            className={`hidden md:flex absolute right-0 top-1/2 transform -translate-y-1/2 z-50 bg-white bg-opacity-50 hover:bg-opacity-100 p-3 rounded-full shadow-md transition-all duration-200 
+              ${currentIndex >= EXAMPLES.length - imagesPerPage ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
             aria-label="Scroll right"
           >
             <svg
@@ -118,7 +133,7 @@ export default function ShowcaseStrip() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                strokeWidth="2"
+                strokeWidth={2}
                 d="M9 5l7 7-7 7"
               />
             </svg>
