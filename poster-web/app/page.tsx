@@ -4,7 +4,7 @@ import HeroVisual from "./components/HeroVisual";
 import RecentShowcase from "./components/RecentShowcase";
 import LandingCTA from "./components/LandingCTA";
 import ShowcaseStrip from "./components/ShowcaseStrip";
-import { useSession } from "next-auth/react"; // or your auth hook
+import { useSession } from "next-auth/react"; // or your auth hook!
 
 export const metadata: Metadata = {
   title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
