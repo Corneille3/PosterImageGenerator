@@ -114,10 +114,10 @@ export default function Nav() {
             <span className="absolute left-0 -bottom-1 h-0.5 bg-accent w-0 transition-all duration-200 group-hover:w-full" />
           </Link>
           <Link
-            href="/#how-it-works"
+            href="/gallery"
             className="relative text-sm text-muted hover:text-text transition-colors duration-200 transform hover:-translate-y-0.5"
           >
-            How it works
+            Gallery
             <span className="absolute left-0 -bottom-1 h-0.5 bg-accent w-0 transition-all duration-200 group-hover:w-full" />
           </Link>
         </nav>
