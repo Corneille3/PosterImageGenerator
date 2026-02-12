@@ -3,6 +3,7 @@ import Link from "next/link";
 import HeroVisual from "./components/HeroVisual";
 import RecentShowcase from "./components/RecentShowcase";
 import LandingCTA from "./components/LandingCTA";
+import ShowcaseStrip from "./components/ShowcaseStrip";
 
 export const metadata: Metadata = {
   title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
@@ -79,7 +80,8 @@ export default function HomePage() {
           </div>
         </section>
 
-
+      <ShowcaseStrip />
+      
       {/* SHOWCASE */}
       <section className="mt-12">
         <div className="flex items-end justify-between gap-4">
@@ -216,8 +218,6 @@ export default function HomePage() {
           ))}
         </div>
       </section>
-
-
 
       {/* CTA */}
       <section className="mt-14">
