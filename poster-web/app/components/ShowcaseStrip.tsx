@@ -1,153 +1,112 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRef, useState, useEffect } from "react";
 
 const EXAMPLES = [
   { src: "/images/dragon.png", alt: "Animation poster" },
   { src: "/images/catering1.png", alt: "Cinematic poster example" },
   { src: "/images/fiction1.png", alt: "Noir poster example" },
-  { src: "/images/dragon.png", alt: "Animated poster example" },
-  { src: "/images/dish.png", alt: "Animated poster example" },
+  { src: "/images/dish.png", alt: "Food poster example" },
   { src: "/images/fiction2.png", alt: "Noir style" },
   { src: "/images/dish2.png", alt: "Animation" },
 ];
 
 export default function ShowcaseStrip() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isMobile, setIsMobile] = useState(false);
+  const [showHint, setShowHint] = useState(true);
 
-  // Detect mobile
+  // Hide swipe hint after 4 seconds
   useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth < 640);
-    update();
-    window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    const timer = setTimeout(() => setShowHint(false), 4000);
+    return () => clearTimeout(timer);
   }, []);
 
-  const imagesPerPage = isMobile ? 1 : 3;
+  const scroll = (direction: "left" | "right") => {
+    if (!containerRef.current) return;
 
-  const scrollRight = () => {
-    if (containerRef.current) {
-      const totalImages = EXAMPLES.length;
-      const maxIndex = totalImages - imagesPerPage;
-      const newIndex = Math.min(currentIndex + 1, maxIndex);
-      setCurrentIndex(newIndex);
-      containerRef.current.scrollTo({
-        left: containerRef.current.clientWidth * newIndex,
-        behavior: "smooth",
-      });
-    }
-  };
+    const container = containerRef.current;
+    const scrollAmount = container.clientWidth * 0.9;
 
-  const scrollLeft = () => {
-    if (containerRef.current) {
-      const newIndex = Math.max(currentIndex - 1, 0);
-      setCurrentIndex(newIndex);
-      containerRef.current.scrollTo({
-        left: containerRef.current.clientWidth * newIndex,
-        behavior: "smooth",
-      });
-    }
+    container.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
   };
 
   return (
-    <section
-      id="showcase-strip"
-      className="mt-16 relative max-w-6xl mx-auto px-6"
-    >
-      <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-4">
-        See What You Can Create
-      </h2>
-      <p className="text-center text-sm text-muted mb-6 sm:mb-8">
-        Swipe on mobile or use the arrows on desktop
-      </p>
+    <section id="showcase-strip" className="mt-16">
+      <div className="max-w-6xl mx-auto px-6">
+        {/* Header */}
+        <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-8">
+          See What You Can Create —{" "}
+          <Link
+            href="/gallery"
+            className="inline-block px-4 py-2 text-sm sm:text-base font-medium text-white bg-accent rounded-lg shadow hover:bg-accent2 transition-transform duration-200 hover:-translate-y-0.5"
+          >
+            Gallery
+          </Link>
+        </h2>
 
-      <div className="relative">
-        {/* Image container */}
-        <div
-          ref={containerRef}
-          className="flex overflow-x-auto gap-6 scroll-smooth snap-x snap-mandatory"
-        >
-          {EXAMPLES.map((item, index) => (
-            <div
-              key={index}
-              className={`relative flex-shrink-0 rounded-2xl border border-border bg-surface/60 shadow-soft transition-transform duration-300 hover:scale-[1.03] ${
-                isMobile ? "w-full snap-center" : "w-1/3"
-              }`}
-            >
-              <Image
-                src={item.src}
-                alt={item.alt}
-                width={1200}
-                height={800}
-                className="w-full h-auto object-cover rounded-2xl"
-              />
+        <div className="relative">
+          {/* Swipe Hint (Mobile Only) */}
+          {showHint && (
+            <div className="absolute -top-6 right-4 text-xs text-muted animate-pulse md:hidden">
+              Swipe →
             </div>
-          ))}
-        </div>
+          )}
 
-        {/* Desktop arrows */}
-        {!isMobile && (
-          <>
-            <button
-              onClick={scrollLeft}
-              disabled={currentIndex === 0}
-              className={`absolute left-2 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-50 hover:bg-opacity-100 p-3 rounded-full shadow-md transition-all duration-200 ${
-                currentIndex === 0 ? "opacity-50 cursor-not-allowed" : ""
-              }`}
-              aria-label="Scroll left"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-6 h-6 text-text"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+          {/* Scroll Container */}
+          <div
+            ref={containerRef}
+            className="
+              flex gap-6 overflow-x-auto scroll-smooth
+              scrollbar-hide
+            "
+          >
+            {EXAMPLES.map((item, index) => (
+              <div
+                key={index}
+                className="
+                  flex-shrink-0
+                  w-full
+                  md:w-[calc(33.333%-1rem)]
+                  relative overflow-hidden rounded-2xl border border-border bg-surface/60 shadow-soft
+                  transition-transform duration-300 hover:scale-[1.03]
+                "
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
+                <Image
+                  src={item.src}
+                  alt={item.alt}
+                  width={1200}
+                  height={800}
+                  className="w-full h-auto object-cover"
+                  priority={index === 0}
                 />
-              </svg>
-            </button>
-            <button
-              onClick={scrollRight}
-              disabled={currentIndex >= EXAMPLES.length - imagesPerPage}
-              className={`absolute right-2 top-1/2 transform -translate-y-1/2 z-10 bg-white bg-opacity-50 hover:bg-opacity-100 p-3 rounded-full shadow-md transition-all duration-200 ${
-                currentIndex >= EXAMPLES.length - imagesPerPage
-                  ? "opacity-50 cursor-not-allowed"
-                  : ""
-              }`}
-              aria-label="Scroll right"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-6 h-6 text-text"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          </>
-        )}
-
-        {/* Mobile swipe hint */}
-        {isMobile && (
-          <div className="absolute right-4 bottom-2 text-xs text-muted animate-bounce">
-            Swipe →
+              </div>
+            ))}
           </div>
-        )}
+
+          {/* Desktop Arrows */}
+          <button
+            onClick={() => scroll("left")}
+            className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-10
+                       bg-white/70 hover:bg-white p-3 rounded-full shadow-md transition"
+            aria-label="Scroll left"
+          >
+            ←
+          </button>
+
+          <button
+            onClick={() => scroll("right")}
+            className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-10
+                       bg-white/70 hover:bg-white p-3 rounded-full shadow-md transition"
+            aria-label="Scroll right"
+          >
+            →
+          </button>
+        </div>
       </div>
     </section>
   );
