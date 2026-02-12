@@ -85,7 +85,8 @@ const scrollLeft = () => {
         {/* Image container */}
         <div
           ref={containerRef}
-          className="flex overflow-x-auto gap-6 scroll-smooth snap-x snap-mandatory"
+          style={{ scrollbarGutter: "stable" }}
+          className="flex overflow-x-auto overflow-y-hidden gap-6 scroll-smooth snap-x snap-mandatory scrollbar-hide"
         >
           {EXAMPLES.map((item, index) => (
             <div
