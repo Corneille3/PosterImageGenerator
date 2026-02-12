@@ -55,15 +55,22 @@ export default function ShowcaseStrip() {
         </h2>
 
         <div className="relative">
-          {/* Horizontal Scroll Container */}
+          {/* Horizontal Scroll Container with peek */}
           <div
             ref={containerRef}
-            className="flex gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth px-2"
+            className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth px-2"
+            style={{
+              paddingLeft: isMobile ? "1rem" : undefined,
+              paddingRight: isMobile ? "1rem" : undefined,
+            }}
           >
             {EXAMPLES.map((item, index) => (
               <div
                 key={index}
-                className="flex-shrink-0 w-full sm:w-1/2 lg:w-1/3 snap-start relative overflow-hidden rounded-2xl border border-border bg-surface/60 shadow-soft transition-transform duration-300 hover:scale-[1.03]"
+                className={`flex-shrink-0 snap-start relative overflow-hidden rounded-2xl border border-border bg-surface/60 shadow-soft transition-transform duration-300 hover:scale-[1.03]`}
+                style={{
+                  width: isMobile ? "calc(100% - 40px)" : isMobile ? undefined : undefined,
+                }}
               >
                 <Image
                   src={item.src}
