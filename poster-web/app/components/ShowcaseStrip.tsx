@@ -161,11 +161,21 @@ const scrollLeft = () => {
         )}
 
         {/* Mobile swipe hint */}
-        {isMobile && (
-          <div className="absolute right-4 bottom-2 text-xs text-muted opacity-80 animate-pulse">
-            Swipe →
-          </div>
-        )}
+        {/* Mobile swipe hint */}
+    {isMobile && (
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-sm text-muted animate-bounce">
+        <span>Swipe</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="w-4 h-4 text-muted animate-ping"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
+      </div>
+    )}
       </div>
     </section>
   );
