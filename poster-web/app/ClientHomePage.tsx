@@ -45,7 +45,7 @@ export default function ClientHomePage() {
                             animate-[fadeUp_0.5s_ease-out_0.4s_forwards]">
               <LandingCTA />
               <Link
-                href="#showcase"
+                href="#showcase-strip"
                 className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
               >
                 See examples
