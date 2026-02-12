@@ -1,20 +1,13 @@
 "use client";
 
-import type { Metadata } from "next";
 import Link from "next/link";
 import HeroVisual from "./components/HeroVisual";
+import LandingCTA from "./components/LandingCTA";
 import ShowcaseStrip from "./components/ShowcaseStrip";
 import RecentShowcaseWrapper from "./components/RecentShowcaseWrapper";
-import LandingCTA from "./components/LandingCTA";
 import { useSession } from "next-auth/react";
 
-export const metadata: Metadata = {
-  title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
-  description:
-    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
-};
-
-export default function HomePage() {
+export default function ClientHomePage() {
   const { data: session } = useSession();
   const isAuthenticated = !!session;
 
@@ -43,35 +36,26 @@ export default function HomePage() {
 
             <div className="mt-5 flex flex-wrap gap-2 text-xs
                             animate-[fadeUp_0.5s_ease-out_0.3s_forwards]">
-              {["Public share links", "Reusable prompts", "High-res output", "Fast iterations"].map((t) => (
-                <span
-                  key={t}
-                  className="rounded-full border border-border bg-surface2/60 px-3 py-1 text-muted"
-                >
-                  {t}
-                </span>
+              {["Public share links","Reusable prompts","High-res output","Fast iterations"].map(t => (
+                <span key={t} className="rounded-full border border-border bg-surface2/60 px-3 py-1 text-muted">{t}</span>
               ))}
             </div>
 
             <div className="mt-7 flex flex-wrap items-center gap-3
                             animate-[fadeUp_0.5s_ease-out_0.4s_forwards]">
               <LandingCTA />
-
               <Link
-                href="#examples"
+                href="#showcase"
                 className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
               >
                 See examples
               </Link>
-
-              {isAuthenticated && (
-                <Link
-                  href="/history"
-                  className="text-sm text-muted hover:text-text transition-colors"
-                >
-                  View history →
-                </Link>
-              )}
+              <Link
+                href="/history"
+                className="text-sm text-muted hover:text-text transition-colors"
+              >
+                View history →
+              </Link>
             </div>
           </div>
 
@@ -81,17 +65,35 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* EXAMPLES / SHOWCASE */}
-      <div id="examples">
-        <ShowcaseStrip />
+      {/* SHOWCASE STRIP (examples for everyone) */}
+      <ShowcaseStrip />
 
-        {/* Only show RecentShowcase for authenticated users */}
-        {isAuthenticated && (
-          <section className="mt-12">
+      {/* RECENT SHOWCASE (only for authenticated users) */}
+      {isAuthenticated && (
+        <section className="mt-12">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 id="showcase" className="scroll-mt-4 text-lg font-semibold text-text">
+                Showcase
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                A few recent generations from your account.
+              </p>
+            </div>
+
+            <Link
+              href="/history"
+              className="text-sm text-muted hover:text-text transition-colors"
+            >
+              View history →
+            </Link>
+          </div>
+
+          <div className="mt-5">
             <RecentShowcaseWrapper />
-          </section>
-        )}
-      </div>
+          </div>
+        </section>
+      )}
 
       {/* FEATURES */}
       <section className="mt-14">
@@ -108,38 +110,26 @@ export default function HomePage() {
           {[
             {
               title: "Preset Styles",
-              desc:
-                "Not inspired? We got you! Choose from Cinematic, Noir, Horror, Animation and more — each style guides lighting, mood, and composition. Everything you need in one place.",
+              desc: "Not inspired? We got you! Choose from Cinematic, Noir, Horror, Animation and more — each style guides lighting, mood, and composition. Everything you need in one place.",
               imgSrc: "/images/preset.jpg",
             },
             {
               title: "High Quality",
-              desc:
-                "Every image is produced at a resolution suitable for digital and print-ready use. Perfect for posters, social media content, branding visuals, storyboards, and more.",
+              desc: "Every image is produced at a resolution suitable for digital and print-ready use. Perfect for posters, social media content, branding visuals, storyboards, and more.",
               imgSrc: "/images/camera-lens.jpg",
             },
             {
               title: "History",
-              desc:
-                "Every generation is automatically saved with prompt and status, making it easy to review, reopen, and reuse past creations.",
+              desc: "Every generation is automatically saved with prompt and status, making it easy to review, reopen, and reuse past creations.",
               imgSrc: "/images/folder-icon.png",
             },
-          ].map((f) => (
-            <div
-              key={f.title}
-              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft
-                        transition-transform duration-300 hover:scale-105 hover:bg-surface2/60"
-            >
+          ].map(f => (
+            <div key={f.title} className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft
+                                        transition-transform duration-300 hover:scale-105 hover:bg-surface2/60">
               <div className="absolute top-2 right-2 flex h-14 w-14 items-center justify-center rounded-full 
                               bg-gradient-to-tr from-[#3dff9a]/40 to-[#7c5cff]/40 blur-[30px] pointer-events-none
                               animate-pulse-slow" />
-
-              <img
-                src={f.imgSrc}
-                alt={`${f.title} icon`}
-                className="relative z-10 w-12 h-12 rounded-full p-2 bg-white/50 shadow-md"
-              />
-
+              <img src={f.imgSrc} alt={`${f.title} icon`} className="relative z-10 w-12 h-12 rounded-full p-2 bg-white/50 shadow-md" />
               <div className="text-sm font-semibold text-text mt-4 break-words">{f.title}</div>
               <div className="mt-2 text-sm text-muted break-words">{f.desc}</div>
             </div>
@@ -162,38 +152,26 @@ export default function HomePage() {
           {[
             {
               title: "1. Enter Prompt",
-              desc:
-                "Describe the scene, characters, mood, lighting, and genre. The more specific you are, the better the result.",
+              desc: "Describe the scene, characters, mood, lighting, and genre. The more specific you are, the better the result.",
               icon: "/images/pen-icon.png",
             },
             {
               title: "2. Choose Style",
-              desc:
-                "Select a preset style to guide the visual direction. You can change or clear it at any time.",
+              desc: "Select a preset style to guide the visual direction. You can change or clear it at any time.",
               icon: "/images/palette-icon.png",
             },
             {
               title: "3. Generate Poster",
-              desc:
-                "We generate via Bedrock, store the image in S3, and display it instantly. Credits are deducted and the result is saved to history.",
+              desc: "We generate via Bedrock, store the image in S3, and display it instantly. Credits are deducted and the result is saved to history.",
               icon: "/images/gear-icon.png",
             },
-          ].map((step) => (
-            <div
-              key={step.title}
-              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft
-                        transition-transform duration-300 hover:scale-105 hover:bg-surface2/60"
-            >
+          ].map(step => (
+            <div key={step.title} className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft
+                                          transition-transform duration-300 hover:scale-105 hover:bg-surface2/60">
               <div className="absolute top-2 right-2 flex h-14 w-14 items-center justify-center rounded-full 
                               bg-gradient-to-tr from-[#3dff9a]/40 to-[#7c5cff]/40 blur-[30px] pointer-events-none
                               animate-pulse-slow" />
-
-              <img
-                src={step.icon}
-                alt={`${step.title} icon`}
-                className="relative z-10 w-12 h-12 rounded-full p-2 bg-white/50 shadow-md"
-              />
-
+              <img src={step.icon} alt={`${step.title} icon`} className="relative z-10 w-12 h-12 rounded-full p-2 bg-white/50 shadow-md" />
               <div className="text-sm font-semibold text-text mt-4 break-words">{step.title}</div>
               <div className="mt-2 text-sm text-muted break-words">{step.desc}</div>
             </div>
@@ -210,7 +188,6 @@ export default function HomePage() {
           <p className="mt-2 text-muted">
             Sign in, craft your prompt, pick a style, and generate your poster.
           </p>
-
           <div className="mt-6 flex justify-center">
             <LandingCTA variant="large" />
           </div>
