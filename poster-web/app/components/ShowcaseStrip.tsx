@@ -28,53 +28,36 @@ export default function ShowcaseStrip() {
 
   const imagesPerPage = isMobile ? 1 : 3;
 
-const scrollRight = () => {
-  if (!containerRef.current) return;
+  const scrollRight = () => {
+    if (containerRef.current) {
+      const totalImages = EXAMPLES.length;
+      const maxIndex = totalImages - imagesPerPage;
+      const newIndex = Math.min(currentIndex + 1, maxIndex);
+      setCurrentIndex(newIndex);
+      containerRef.current.scrollTo({
+        left: containerRef.current.clientWidth * newIndex,
+        behavior: "smooth",
+      });
+    }
+  };
 
-  const container = containerRef.current;
-  const cardWidth = container.firstElementChild?.clientWidth || 0;
-  const gap = 24; // gap-6 = 1.5rem = 24px
-
-  const scrollAmount = cardWidth + gap;
-
-  const totalImages = EXAMPLES.length;
-  const maxIndex = totalImages - imagesPerPage;
-  const newIndex = Math.min(currentIndex + 1, maxIndex);
-
-  setCurrentIndex(newIndex);
-
-  container.scrollTo({
-    left: scrollAmount * newIndex,
-    behavior: "smooth",
-  });
-};
-
-const scrollLeft = () => {
-  if (!containerRef.current) return;
-
-  const container = containerRef.current;
-  const cardWidth = container.firstElementChild?.clientWidth || 0;
-  const gap = 24;
-
-  const scrollAmount = cardWidth + gap;
-
-  const newIndex = Math.max(currentIndex - 1, 0);
-
-  setCurrentIndex(newIndex);
-
-  container.scrollTo({
-    left: scrollAmount * newIndex,
-    behavior: "smooth",
-  });
-};
-
+  const scrollLeft = () => {
+    if (containerRef.current) {
+      const newIndex = Math.max(currentIndex - 1, 0);
+      setCurrentIndex(newIndex);
+      containerRef.current.scrollTo({
+        left: containerRef.current.clientWidth * newIndex,
+        behavior: "smooth",
+      });
+    }
+  };
 
   return (
     <section
       id="showcase-strip"
       className="mt-16 relative max-w-6xl mx-auto px-6"
     >
-      <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-4">
+      <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-2">
         See What You Can Create
       </h2>
       <p className="text-center text-sm text-muted mb-6 sm:mb-8">
@@ -85,8 +68,7 @@ const scrollLeft = () => {
         {/* Image container */}
         <div
           ref={containerRef}
-          style={{ scrollbarGutter: "stable" }}
-          className="flex overflow-x-auto overflow-y-hidden gap-6 scroll-smooth snap-x snap-mandatory scrollbar-hide"
+          className="flex overflow-x-auto gap-6 scroll-smooth snap-x snap-mandatory scrollbar-none"
         >
           {EXAMPLES.map((item, index) => (
             <div
@@ -161,21 +143,20 @@ const scrollLeft = () => {
         )}
 
         {/* Mobile swipe hint */}
-        {/* Mobile swipe hint */}
-    {isMobile && (
-      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-sm text-muted animate-bounce">
-        <span>Swipe</span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="w-4 h-4 text-muted animate-ping"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-        </svg>
-      </div>
-    )}
+        {isMobile && (
+          <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 text-sm text-muted animate-bounce">
+            <span>Swipe</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-4 h-4 text-muted animate-ping"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        )}
       </div>
     </section>
   );
