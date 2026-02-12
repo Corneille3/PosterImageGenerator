@@ -160,7 +160,8 @@ export default function Nav() {
 
       {/* Mobile Full-Screen Overlay */}
       {isMobile && isMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-[rgba(15,18,32,0.95)] backdrop-blur flex flex-col justify-center items-center gap-8 px-6 transition-transform duration-300">
+        <div className="fixed inset-0 z-50 bg-[rgba(15,18,32,0.95)] backdrop-blur flex flex-col justify-center items-center gap-8 px-6 transition-transform duration-300 overflow-y-auto">
+          {/* Close button */}
           <button
             onClick={() => setIsMenuOpen(false)}
             aria-label="Close menu"
@@ -187,8 +188,16 @@ export default function Nav() {
             ))}
           </nav>
 
+          {/* Swipe hint */}
+          <div className="absolute bottom-4 right-1/2 transform translate-x-1/2 text-xs text-muted flex items-center gap-1 animate-bounce">
+            <span>Swipe for more →</span>
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+
           {/* Sign in / Sign out */}
-          <div className="mt-8">
+          <div className="mt-8 mb-6">
             {status !== "authenticated" ? (
               <Link
                 href="/api/auth/signin"
