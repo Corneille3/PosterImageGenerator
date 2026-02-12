@@ -42,6 +42,7 @@ function NavLink({
 
 export default function Nav() {
   const { status } = useSession();
+  const isAuthenticated = status === "authenticated";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-[rgba(15,18,32,0.95)] backdrop-blur">
@@ -51,8 +52,7 @@ export default function Nav() {
         <Link
           href="/"
           className="flex items-center gap-3 transition-transform duration-200 hover:-translate-y-1"
-           >
-          {/* Brand Logo with Dynamic Gradient Glow */}
+        >
           <span
             className="
               inline-flex h-14 w-14 items-center justify-center 
@@ -64,7 +64,6 @@ export default function Nav() {
               overflow-hidden
             "
             style={{
-              // Fallback if CSS variables not supported
               '--brand-gradient-from': '#3dff9a',
               '--brand-gradient-to': '#7c5cff',
             } as React.CSSProperties}
@@ -76,13 +75,10 @@ export default function Nav() {
             />
           </span>
 
-
-          {/* Brand name gradient */}
           <span className="text-1xl sm:text-2xl font-extrabold bg-gradient-to-r from-[#3dff9a] via-[#7c5cff] to-[#3dff9a] bg-clip-text text-transparent drop-shadow-[0_0_5px_rgba(61,255,154,0.6)] transition-transform duration-200 hover:scale-105">
             Poster Generator
           </span>
 
-          {/* Beta badge */}
           <span className="ml-1 inline-block rounded-full bg-accent px-3 py-1 text-xs sm:text-sm font-semibold text-white
                           shadow-[0_0_10px_rgba(122,92,255,0.5)]
                           animate-pulse-slow
@@ -90,7 +86,6 @@ export default function Nav() {
             Beta
           </span>
         </Link>
-
 
         {/* Nav links */}
         <nav className="hidden md:flex items-center gap-6">
@@ -100,12 +95,13 @@ export default function Nav() {
 
           {/* Landing sections */}
           <Link
-            href="/#showcase"
+            href={isAuthenticated ? "/showcase" : "/#showcase"}
             className="relative text-sm text-muted hover:text-text transition-colors duration-200 transform hover:-translate-y-0.5"
           >
             Showcase
             <span className="absolute left-0 -bottom-1 h-0.5 bg-accent w-0 transition-all duration-200 group-hover:w-full" />
           </Link>
+
           <Link
             href="/#features"
             className="relative text-sm text-muted hover:text-text transition-colors duration-200 transform hover:-translate-y-0.5"
@@ -113,6 +109,7 @@ export default function Nav() {
             Features
             <span className="absolute left-0 -bottom-1 h-0.5 bg-accent w-0 transition-all duration-200 group-hover:w-full" />
           </Link>
+
           <Link
             href="/gallery"
             className="relative text-sm text-muted hover:text-text transition-colors duration-200 transform hover:-translate-y-0.5"
@@ -124,7 +121,6 @@ export default function Nav() {
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          {/* Open App button with image */}
           <Link
             href="/dashboard#generator"
             className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white
@@ -140,7 +136,6 @@ export default function Nav() {
             Open App
           </Link>
 
-          {/* Sign in / Sign out buttons */}
           {status !== "authenticated" ? (
             <Link
               href="/api/auth/signin"
