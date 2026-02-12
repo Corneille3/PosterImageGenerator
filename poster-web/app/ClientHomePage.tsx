@@ -1,14 +1,18 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import type { Metadata } from "next";
+import Link from "next/link";
 import HeroVisual from "./components/HeroVisual";
-import LandingCTA from "./components/LandingCTA";
 import ShowcaseStrip from "./components/ShowcaseStrip";
+import LandingCTA from "./components/LandingCTA";
+
+export const metadata: Metadata = {
+  title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+  description:
+    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+};
 
 export default function ClientHomePage() {
-  const { data: session } = useSession();
-  const isAuthenticated = !!session;
-
   return (
     <div className="py-10">
       {/* HERO */}
@@ -53,13 +57,19 @@ export default function ClientHomePage() {
                             animate-[fadeUp_0.5s_ease-out_0.4s_forwards]">
               <LandingCTA />
 
-              {/* Scroll to ShowcaseStrip on landing page */}
-              <a
-                href="#showcase-strip"
+              <Link
+                href="#showcasestrip"
                 className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
               >
                 See examples
-              </a>
+              </Link>
+
+              <Link
+                href="/history"
+                className="text-sm text-muted hover:text-text transition-colors"
+              >
+                View history →
+              </Link>
             </div>
           </div>
 
@@ -69,7 +79,7 @@ export default function ClientHomePage() {
         </div>
       </section>
 
-      {/* Showcases Section */}
+      {/* SHOWCASE STRIP */}
       <ShowcaseStrip />
 
       {/* FEATURES */}
@@ -128,6 +138,7 @@ export default function ClientHomePage() {
         </div>
       </section>
 
+      {/* HOW IT WORKS */}
       <section className="mt-14">
         <div className="mb-6">
           <h2 id="how-it-works" className="scroll-mt-4 text-xl font-semibold tracking-tight text-text">
