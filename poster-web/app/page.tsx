@@ -1,64 +1,106 @@
-"use client";
-
-import Image from "next/image";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import HeroVisual from "./components/HeroVisual";
+import RecentShowcase from "./components/RecentShowcase";
+import LandingCTA from "./components/LandingCTA";
+import ShowcaseStrip from "./components/ShowcaseStrip";
+import { useSession } from "next-auth/react";
 
-const EXAMPLES = [
-  { src: "/images/dragon.png", alt: "Animation poster" },
-  { src: "/images/catering1.png", alt: "Cinematic poster example" },
-  { src: "/images/fiction1.png", alt: "Noir poster example" },
-  { src: "/images/dragon.png", alt: "Animated poster example" },
-  { src: "/images/dish.png", alt: "Animated poster example" },
-  { src: "/images/fiction2.png", alt: "Noir style" },
-  { src: "/images/dish2.png", alt: "Animation" },
-];
+export const metadata: Metadata = {
+  title: "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+  description:
+    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+};
 
-export default function ShowcaseStrip() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 640); // sm breakpoint
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  const imagesPerPage = isMobile ? 1 : 3;
+export default function HomePage() {
+  const { data: session } = useSession();
+  const isAuthenticated = !!session;
 
   return (
-    <section className="mt-16">
-      <div className="max-w-6xl mx-auto px-6">
-        <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-8">
-          See What You Can Create — click on{" "}
-          <Link
-            href="/gallery"
-            className="inline-block px-4 py-2 text-sm sm:text-base font-medium text-white bg-accent rounded-lg shadow hover:bg-accent2 transition-transform duration-200 hover:-translate-y-0.5"
-          >
-            Gallery
-          </Link>{" "}
-          for more images
-        </h2>
-
-        {/* Horizontal scroll container */}
-        <div className="flex overflow-x-auto gap-6 snap-x snap-mandatory">
-          {EXAMPLES.map((item, index) => (
-            <div
-              key={index}
-              className={`relative min-w-[${isMobile ? "80%" : "30%"}] flex-shrink-0 snap-start overflow-hidden rounded-2xl border border-border bg-surface/60 shadow-soft transition-transform duration-300 hover:scale-[1.03]`}
-            >
-              <Image
-                src={item.src}
-                alt={item.alt}
-                width={1200}
-                height={800}
-                className="w-full h-auto object-cover"
-                priority={index === 0}
-              />
+    <div className="py-10">
+      {/* HERO */}
+      <section className="relative overflow-hidden rounded-3xl border border-border bg-surface/60 p-8 sm:p-10">
+        <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface2/60 px-3 py-1 text-xs text-muted animate-[fadeUp_0.4s_ease-out_forwards]">
+              <span className="h-2 w-2 rounded-full bg-[rgba(61,255,154,1)] shadow-[0_0_25px_rgba(61,255,154,0.35)]" />
+              Bedrock-powered • Credits • History
             </div>
-          ))}
+
+            <h1 className="mt-4 text-3xl sm:text-4xl font-semibold tracking-tight text-text animate-[fadeUp_0.5s_ease-out_0.1s_forwards]">
+              Generate cinematic AI movie posters in seconds
+            </h1>
+
+            <p className="mt-4 max-w-xl text-muted animate-[fadeUp_0.5s_ease-out_0.2s_forwards]">
+              Prompt → poster. Save every generation to history, reuse prompts, and
+              share public links — powered by AWS.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-2 text-xs animate-[fadeUp_0.5s_ease-out_0.3s_forwards]">
+              {["Public share links", "Reusable prompts", "High-res output", "Fast iterations"].map((t) => (
+                <span key={t} className="rounded-full border border-border bg-surface2/60 px-3 py-1 text-muted">
+                  {t}
+                </span>
+              ))}
+            </div>
+
+            <div className="mt-7 flex flex-wrap items-center gap-3 animate-[fadeUp_0.5s_ease-out_0.4s_forwards]">
+              <LandingCTA />
+              <Link
+                href="#showcase-strip"
+                className="rounded-xl border border-border bg-surface2/50 px-5 py-3 text-sm font-semibold text-text hover:bg-surface2 transition-colors"
+              >
+                See examples
+              </Link>
+              {isAuthenticated && (
+                <Link
+                  href="/history"
+                  className="text-sm text-muted hover:text-text transition-colors"
+                >
+                  View history →
+                </Link>
+              )}
+            </div>
+          </div>
+
+          <div className="animate-[fadeUp_0.6s_ease-out_0.2s_forwards]">
+            <HeroVisual />
+          </div>
         </div>
+      </section>
+
+      {/* Public Showcase Strip */}
+      <div id="showcase-strip">
+        <ShowcaseStrip />
       </div>
-    </section>
-  );
-}
+
+      {/* Authenticated recent images */}
+      {isAuthenticated && (
+        <section className="mt-12">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <h2 id="showcase" className="scroll-mt-4 text-lg font-semibold text-text">
+                Your Recent Posters
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                A few recent generations from your account.
+              </p>
+            </div>
+
+            <Link
+              href="/history"
+              className="text-sm text-muted hover:text-text transition-colors"
+            >
+              View history →
+            </Link>
+          </div>
+
+          <div className="mt-5">
+            <RecentShowcase />
+          </div>
+        </section>
+      )}
+
+      {/* FEATURES, HOW IT WORKS, CTA */}
+      {/* ...keep the rest of the page unchanged... */}
+    </div>
