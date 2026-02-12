@@ -1,220 +1,64 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
-type HistoryItem = {
-  sk: string;
-  status?: string;
-  createdAt?: string;
-  prompt?: string;
-  presigned_url?: string;
-};
+const EXAMPLES = [
+  { src: "/images/dragon.png", alt: "Animation poster" },
+  { src: "/images/catering1.png", alt: "Cinematic poster example" },
+  { src: "/images/fiction1.png", alt: "Noir poster example" },
+  { src: "/images/dragon.png", alt: "Animated poster example" },
+  { src: "/images/dish.png", alt: "Animated poster example" },
+  { src: "/images/fiction2.png", alt: "Noir style" },
+  { src: "/images/dish2.png", alt: "Animation" },
+];
 
-function formatDate(input?: string) {
-  if (!input) return "";
-  const d = new Date(input);
-  if (Number.isNaN(d.getTime())) return input;
-  return d.toLocaleString();
-}
-
-function StatusBadge({ status }: { status?: string }) {
-  const normalized = (status || "").toUpperCase();
-  if (normalized === "SUCCESS") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-success/30 bg-success/15 px-2 py-1 text-xs text-success">
-        SUCCESS
-      </span>
-    );
-  }
-  if (normalized === "FAILED") {
-    return (
-      <span className="inline-flex items-center rounded-full border border-danger/30 bg-danger/15 px-2 py-1 text-xs text-danger">
-        FAILED
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center rounded-full border border-border bg-surface2 px-2 py-1 text-xs text-muted">
-      {normalized || "UNKNOWN"}
-    </span>
-  );
-}
-
-function Tile({ it }: { it: HistoryItem }) {
-  const hasImage = Boolean(it.presigned_url);
-
-  return (
-    <div className="group relative overflow-hidden rounded-2xl border border-border bg-[rgba(122,92,255,0.16)]
-                    transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
-      <div className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <StatusBadge status={it.status} />
-          {it.createdAt ? (
-            <span className="text-xs text-muted">{formatDate(it.createdAt)}</span>
-          ) : null}
-        </div>
-
-        <div className="mt-3 line-clamp-2 text-sm font-semibold text-text">
-          {it.prompt || "(no prompt)"}
-        </div>
-      </div>
-
-      <div className="relative h-44 border-t border-border bg-surface2 overflow-hidden">
-        {hasImage ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={it.presigned_url}
-              alt="generated"
-              loading="lazy"
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
-            />
-            <div className="absolute inset-0 opacity-50 group-hover:opacity-80 transition-opacity bg-[linear-gradient(to_top,rgba(0,0,0,0.55),transparent_60%)]" />
-          </>
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-muted">
-            No image
-          </div>
-        )}
-      </div>
-
-      {hasImage ? (
-        <a
-          className="absolute inset-0"
-          href={it.presigned_url}
-          target="_blank"
-          rel="noreferrer"
-          aria-label="Open generated image"
-        />
-      ) : null}
-
-      {hasImage ? (
-        <div className="pointer-events-none absolute right-3 top-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="rounded-full border border-border bg-[rgba(15,18,32,0.85)] px-3 py-1 text-xs text-text">
-            Open ↗
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function LoggedOutShowcase() {
-  return (
-    <div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="relative h-[260px] overflow-hidden rounded-2xl border border-border bg-[rgba(122,92,255,0.16)]"
-          >
-            <div className="absolute inset-0 opacity-60 bg-[radial-gradient(600px_240px_at_50%_0%,rgba(255,255,255,0.16),transparent_60%)]" />
-            <div className="absolute inset-0 bg-[linear-gradient(to_top,rgba(0,0,0,0.55),transparent_60%)]" />
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 rounded-2xl border border-border bg-surface/60 p-6 text-center">
-        <div className="text-sm font-semibold text-text">
-          Sign in to see your personal showcase
-        </div>
-        <div className="mt-1 text-sm text-muted">
-          Your recent posters will appear here after you generate them.
-        </div>
-        <div className="mt-4">
-          <Link
-            href="/api/auth/signin"
-            className="inline-flex rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent2 transition-colors"
-          >
-            Sign in
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function RecentShowcase() {
-  const { status } = useSession();
-  const isAuthed = status === "authenticated";
-
-  const [items, setItems] = useState<HistoryItem[] | null>(null);
+export default function ShowcaseStrip() {
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    if (!isAuthed) {
-      setItems(null);
-      return;
-    }
+    const handleResize = () => setIsMobile(window.innerWidth < 640); // sm breakpoint
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
-    let cancelled = false;
-
-    async function run() {
-      try {
-        const url = new URL("/api/history", window.location.origin);
-        url.searchParams.set("limit", "12");
-
-        const res = await fetch(url.toString(), { method: "GET" });
-        if (!res.ok) throw new Error("Failed");
-
-        const data = await res.json();
-        const rawItems = (data?.items ?? []) as HistoryItem[];
-
-        const best = rawItems.filter((x) => x?.presigned_url).slice(0, 6);
-        if (!cancelled) setItems(best);
-      } catch {
-        if (!cancelled) setItems([]);
-      }
-    }
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthed]);
-
-  if (!isAuthed) {
-    return <LoggedOutShowcase />;
-  }
-
-  if (items === null) {
-    return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-[260px] rounded-2xl border border-border bg-[rgba(122,92,255,0.16)] animate-pulse"
-          />
-        ))}
-      </div>
-    );
-  }
-
-  if (items.length === 0) {
-    return (
-      <div className="rounded-2xl border border-border bg-surface/60 p-6 text-center">
-        <div className="text-sm font-semibold text-text">No recent images</div>
-        <div className="mt-1 text-sm text-muted">
-          Generate a poster to populate your showcase.
-        </div>
-        <div className="mt-4">
-          <Link
-            href="/dashboard#generator"
-            className="inline-flex rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white hover:bg-accent2 transition-colors"
-          >
-            Generate now
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  const imagesPerPage = isMobile ? 1 : 3;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {items.map((it) => (
-        <Tile key={it.sk} it={it} />
-      ))}
-    </div>
+    <section className="mt-16">
+      <div className="max-w-6xl mx-auto px-6">
+        <h2 className="text-2xl sm:text-3xl font-semibold text-center text-text mb-8">
+          See What You Can Create — click on{" "}
+          <Link
+            href="/gallery"
+            className="inline-block px-4 py-2 text-sm sm:text-base font-medium text-white bg-accent rounded-lg shadow hover:bg-accent2 transition-transform duration-200 hover:-translate-y-0.5"
+          >
+            Gallery
+          </Link>{" "}
+          for more images
+        </h2>
+
+        {/* Horizontal scroll container */}
+        <div className="flex overflow-x-auto gap-6 snap-x snap-mandatory">
+          {EXAMPLES.map((item, index) => (
+            <div
+              key={index}
+              className={`relative min-w-[${isMobile ? "80%" : "30%"}] flex-shrink-0 snap-start overflow-hidden rounded-2xl border border-border bg-surface/60 shadow-soft transition-transform duration-300 hover:scale-[1.03]`}
+            >
+              <Image
+                src={item.src}
+                alt={item.alt}
+                width={1200}
+                height={800}
+                className="w-full h-auto object-cover"
+                priority={index === 0}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
