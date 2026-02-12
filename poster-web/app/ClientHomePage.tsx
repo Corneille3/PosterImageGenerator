@@ -128,6 +128,61 @@ export default function ClientHomePage() {
         </div>
       </section>
 
+      <section className="mt-14">
+        <div className="mb-6">
+          <h2 id="how-it-works" className="scroll-mt-4 text-xl font-semibold tracking-tight text-text">
+            How to get the best out of the generator
+          </h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted">
+            Follow these simple steps to guide the AI and generate cinematic-quality posters.
+          </p>
+        </div>
+
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            {
+              title: "1. Enter Prompt",
+              desc:
+                "Describe the scene, characters, mood, lighting, and genre. The more specific you are, the better the result.",
+              icon: "/images/pen-icon.png",
+            },
+            {
+              title: "2. Choose Style",
+              desc:
+                "Select a preset style to guide the visual direction. You can change or clear it at any time.",
+              icon: "/images/palette-icon.png",
+            },
+            {
+              title: "3. Generate Poster",
+              desc:
+                "We generate via Bedrock, store the image in S3, and display it instantly. Credits are deducted and the result is saved to history.",
+              icon: "/images/gear-icon.png",
+            },
+          ].map((step) => (
+            <div
+              key={step.title}
+              className="relative rounded-2xl border border-border bg-surface/60 p-6 text-center shadow-soft
+                        transition-transform duration-300 hover:scale-105 hover:bg-surface2/60"
+            >
+              {/* Pulsing glow behind icon */}
+              <div className="absolute top-2 right-2 flex h-14 w-14 items-center justify-center rounded-full 
+                              bg-gradient-to-tr from-[#3dff9a]/40 to-[#7c5cff]/40 blur-[30px] pointer-events-none
+                              animate-pulse-slow" />
+
+              {/* Icon */}
+              <img
+                src={step.icon}
+                alt={`${step.title} icon`}
+                className="relative z-10 w-12 h-12 rounded-full p-2 bg-white/50 shadow-md"
+              />
+
+              <div className="text-sm font-semibold text-text mt-4 break-words">{step.title}</div>
+              <div className="mt-2 text-sm text-muted break-words">{step.desc}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="mt-14">
         <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-[rgba(61,255,154,0.10)] p-10 text-center">
