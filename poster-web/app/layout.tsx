@@ -28,7 +28,8 @@ export const metadata: Metadata = {
   },
 
   description:
-    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links - powered by AWS.",
+,
 
   applicationName: "Kornea Poster AI",
 
