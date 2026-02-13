@@ -82,7 +82,7 @@ export const metadata: Metadata = {
     description:
       "Generate stunning AI-powered cinematic movie posters in seconds with Kornea Poster AI. Save your creations, reuse prompts, and share public links—powered by AWS.",
     images: [new URL("/images/joy1.png", siteUrl).toString()],
-      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links - powered by AWS.",
     images: [
       new URL("/images/joy1.png", siteUrl).toString(),
       new URL("/images/joy2.png", siteUrl).toString(),
@@ -100,9 +100,9 @@ export default function RootLayout({
   const structuredData = {
     "@context": "http://schema.org",
     "@type": "WebPage",
-    "name": "Kornea Poster AI — Cinematic AI Movie Poster Generator",
+    "name": "Kornea Poster AI - Cinematic AI Movie Poster Generator",
     "description":
-      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
+      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links - powered by AWS.",
     "url": siteUrl,
     "image": [
       {
@@ -110,7 +110,7 @@ export default function RootLayout({
         "url": new URL("/images/joy1.png", siteUrl).toString(),
         "width": 1200,
         "height": 630,
-        "alt": "Kornea Poster AI – AI Movie Poster Generator",
+        "alt": "Kornea Poster AI - AI Movie Poster Generator",
       },
       {
         "@type": "ImageObject",
