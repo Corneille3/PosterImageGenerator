@@ -77,20 +77,17 @@ export const metadata: Metadata = {
   },
 
   twitter: {
-    card: "summary_large_image",
-    title: "Kornea Poster AI - Cinematic AI Movie Poster Generator",
-    description:
-      "Generate stunning AI-powered cinematic movie posters in seconds with Kornea Poster AI. Save your creations, reuse prompts, and share public links - powered by AWS.",
-    images: [new URL("/images/joy1.png", siteUrl).toString()],
-      "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links - powered by AWS.",
-    images: [
-      new URL("/images/joy1.png", siteUrl).toString(),
-      new URL("/images/joy2.png", siteUrl).toString(),
-      new URL("/images/joy3.png", siteUrl).toString(),
-      new URL("/images/joy4.png", siteUrl).toString(),
-    ],
-  },
-};
+  card: "summary_large_image",
+  title: "Kornea Poster AI - Cinematic AI Movie Poster Generator",
+  description:
+    "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links - powered by AWS.",
+  images: [
+    new URL("/images/joy1.png", siteUrl).toString(),
+    new URL("/images/joy2.png", siteUrl).toString(),
+    new URL("/images/joy3.png", siteUrl).toString(),
+    new URL("/images/joy4.png", siteUrl).toString(),
+  ],
+},
 
 export default function RootLayout({
   children,
