@@ -35,7 +35,7 @@ variable "api_route_path" {
 #Add variables for credits/history
 variable "initial_credits" {
   type    = number
-  default = 25
+  default = 10
 }
 
 variable "history_ttl_days" {
@@ -184,10 +184,13 @@ resource "aws_lambda_function" "fn" {
       S3_REGION      = var.region
       MODEL_ID       = var.model_id
 
-      DDB_TABLE_NAME    = aws_dynamodb_table.app.name
-      INITIAL_CREDITS   = tostring(var.initial_credits)
-      HISTORY_TTL_DAYS  = tostring(var.history_ttl_days)
+      DDB_TABLE_NAME        = aws_dynamodb_table.app.name
+      INITIAL_CREDITS       = tostring(var.initial_credits)
+      HISTORY_TTL_DAYS      = tostring(var.history_ttl_days)
 
+      # New environment variables for daily credits and reset
+      DAILY_CREDITS         = "10"      # You can change this value
+      CREDITS_RESET_SECONDS = "86400"   # 86400 seconds = 24 hours
     }
   }
 }

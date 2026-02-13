@@ -94,7 +94,6 @@ const ASPECT_RATIOS = [
 const OUTPUT_FORMATS = [
   { value: "png", label: "PNG" },
   { value: "jpeg", label: "JPEG" },
-  { value: "webp", label: "WEBP" },
 ] as const;
 
 type AspectRatio = (typeof ASPECT_RATIOS)[number]["value"];
@@ -460,7 +459,7 @@ useEffect(() => {
           {/* No credits hint */}
           {creditsRemaining !== null && creditsRemaining <= 0 ? (
             <div className="mt-4 rounded-2xl border border-danger/25 bg-danger/10 p-4 text-sm text-muted">
-              You’re out of credits.
+              You’re out of credits. Check again in 24 for 10 more. FREE!!!!!!
             </div>
           ) : null}
         </div>
