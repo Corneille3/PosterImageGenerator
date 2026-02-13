@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ClientHomePage from "./ClientHomePage";
 import Link from "next/link";
 import HeroVisual from "./components/HeroVisual";
 import LandingCTA from "./components/LandingCTA";
@@ -11,6 +12,8 @@ export const metadata: Metadata = {
     "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
 };
 
+export default function Page() {
+  return <ClientHomePage />;
 export default function HomePage() {
   return (
     <div className="py-10">
