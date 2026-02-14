@@ -126,7 +126,6 @@ function TabButton({
 }
 
 function StylePreviewBadge({ id }: { id: string }) {
-  // Small visual header per style (no external images)
   const map: Record<
     string,
     { top: string; mid: string; bottom: string; tag: string }
@@ -222,6 +221,112 @@ function StyleCard({
   );
 }
 
+function PresetPreviewBadge({ label }: { label: string }) {
+  // deterministic-ish “category” from label keywords
+  const lower = label.toLowerCase();
+  const key =
+    lower.includes("noir") || lower.includes("thriller")
+      ? "noir"
+      : lower.includes("horror")
+      ? "horror"
+      : lower.includes("kids") || lower.includes("animation")
+      ? "animation"
+      : lower.includes("safari") || lower.includes("savanna") || lower.includes("tribal")
+      ? "savanna"
+      : "cinematic";
+
+  const map: Record<
+    string,
+    { top: string; mid: string; bottom: string; tag: string }
+  > = {
+    cinematic: {
+      top: "bg-gradient-to-r from-accent/30 via-accent/10 to-transparent",
+      mid: "bg-gradient-to-b from-white/10 to-transparent",
+      bottom: "bg-gradient-to-t from-black/35 to-transparent",
+      tag: "PRESET",
+    },
+    noir: {
+      top: "bg-gradient-to-r from-white/10 via-transparent to-white/5",
+      mid: "bg-gradient-to-b from-black/20 to-transparent",
+      bottom: "bg-gradient-to-t from-black/50 to-transparent",
+      tag: "NOIR",
+    },
+    animation: {
+      top: "bg-gradient-to-r from-accent/25 via-white/12 to-accent/10",
+      mid: "bg-gradient-to-b from-white/14 to-transparent",
+      bottom: "bg-gradient-to-t from-black/25 to-transparent",
+      tag: "KIDS",
+    },
+    horror: {
+      top: "bg-gradient-to-r from-black/45 via-white/6 to-transparent",
+      mid: "bg-gradient-to-b from-black/25 to-transparent",
+      bottom: "bg-gradient-to-t from-black/60 to-transparent",
+      tag: "HORROR",
+    },
+    savanna: {
+      top: "bg-gradient-to-r from-accent/18 via-white/10 to-transparent",
+      mid: "bg-gradient-to-b from-white/10 to-transparent",
+      bottom: "bg-gradient-to-t from-black/35 to-transparent",
+      tag: "SAVANNA",
+    },
+  };
+
+  const v = map[key];
+
+  return (
+    <div className="relative h-16 overflow-hidden rounded-xl border border-border bg-surface2">
+      <div className={["absolute inset-0", v.top].join(" ")} />
+      <div className={["absolute inset-0", v.mid].join(" ")} />
+      <div className={["absolute inset-0", v.bottom].join(" ")} />
+      <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/60 px-2 py-1 text-[10px] font-semibold text-text backdrop-blur">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_rgba(168,85,247,0.45)]" />
+        {v.tag}
+      </div>
+      <div className="absolute bottom-2 right-2 text-[10px] text-muted">
+        preset
+      </div>
+    </div>
+  );
+}
+
+function PresetCard({
+  label,
+  prompt,
+  onUse,
+}: {
+  label: string;
+  prompt: string;
+  onUse: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onUse}
+      className={[
+        "rounded-2xl border border-border bg-surface p-4 text-left transition",
+        "hover:bg-surface2 active:scale-[0.99]",
+        "focus:outline-none focus:ring-2 focus:ring-accent/35",
+      ].join(" ")}
+    >
+      <PresetPreviewBadge label={label} />
+
+      <div className="mt-3 flex items-start justify-between gap-2">
+        <div className="font-semibold text-text">{label}</div>
+        <span className="text-xs rounded-full border border-border bg-surface2 px-2 py-1 text-muted">
+          Use
+        </span>
+      </div>
+
+      <div className="mt-2 line-clamp-3 text-xs text-muted">{prompt}</div>
+
+      <div className="mt-3 inline-flex items-center gap-2 text-xs text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent/70" />
+        Fills prompt
+      </div>
+    </button>
+  );
+}
+
 export default function GeneratePoster() {
   const { status } = useSession();
 
@@ -238,11 +343,13 @@ export default function GeneratePoster() {
   const [error, setError] = useState<string | null>(null);
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
 
-  // Tabs
   const [activeTab, setActiveTab] = useState<TabId>("prompt");
-
-  // Presets filter (Presets tab)
   const [presetQuery, setPresetQuery] = useState("");
+
+  const selectedStyle = useMemo(() => {
+    if (!selectedStyleId) return null;
+    return STYLES.find((s) => s.id === selectedStyleId) ?? null;
+  }, [selectedStyleId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -392,7 +499,6 @@ export default function GeneratePoster() {
 
   const setPresetIntoPrompt = (presetPrompt: string) => {
     setPrompt(presetPrompt);
-    // keep user in flow: prompt tab
     setActiveTab("prompt");
   };
 
@@ -463,6 +569,45 @@ export default function GeneratePoster() {
               <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
                 <label className="text-sm font-medium text-text">Prompt</label>
 
+                {/* ✅ Selected style chip (B) */}
+                {selectedStyle ? (
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent">
+                      <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_10px_rgba(168,85,247,0.55)]" />
+                      Style: {selectedStyle.name}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("style")}
+                      className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-surface2 transition"
+                    >
+                      Change
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={clearStyle}
+                      className="rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-xs text-muted">
+                      No style selected.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab("style")}
+                      className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-surface2 transition"
+                    >
+                      Pick a style
+                    </button>
+                  </div>
+                )}
+
                 <div className="mt-3">
                   <textarea
                     value={prompt}
@@ -471,9 +616,6 @@ export default function GeneratePoster() {
                     className="min-h-[150px] w-full resize-none rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                   />
                 </div>
-
-                {/* ✅ Inline presets RIGHT BELOW prompt area */}
-                
 
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <button
@@ -493,7 +635,7 @@ export default function GeneratePoster() {
             </div>
           ) : null}
 
-          {/* TAB: PRESETS */}
+          {/* TAB: PRESETS (A) */}
           {activeTab === "presets" ? (
             <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
               <div className="flex items-start justify-between gap-3">
@@ -514,28 +656,14 @@ export default function GeneratePoster() {
                 />
               </div>
 
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {filteredPresets.map((p) => (
-                  <button
+                  <PresetCard
                     key={p.id}
-                    type="button"
-                    onClick={() => setPresetIntoPrompt(p.prompt)}
-                    className={[
-                      "rounded-2xl border border-border bg-surface p-4 text-left transition",
-                      "hover:bg-surface2 active:scale-[0.99]",
-                      "focus:outline-none focus:ring-2 focus:ring-accent/35",
-                    ].join(" ")}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold text-text">{p.label}</div>
-                      <span className="text-xs rounded-full border border-border bg-surface2 px-2 py-1 text-muted">
-                        Use
-                      </span>
-                    </div>
-                    <div className="mt-2 line-clamp-3 text-xs text-muted">
-                      {p.prompt}
-                    </div>
-                  </button>
+                    label={p.label}
+                    prompt={p.prompt}
+                    onUse={() => setPresetIntoPrompt(p.prompt)}
+                  />
                 ))}
               </div>
 
