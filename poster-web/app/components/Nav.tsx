@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 function cx(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(" ");
@@ -29,7 +29,8 @@ function NavLink({
       href={href}
       onClick={onClick}
       className={cx(
-        "relative text-lg transition-colors duration-200 transform hover:-translate-y-0.5",
+        // ✅ add `group` so group-hover underline works
+        "group relative text-lg transition-colors duration-200 transform hover:-translate-y-0.5",
         active ? "text-text" : "text-muted hover:text-text"
       )}
     >
@@ -47,6 +48,7 @@ function NavLink({
 export default function Nav() {
   const { status } = useSession();
   const pathname = usePathname();
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -57,9 +59,34 @@ export default function Nav() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  // ✅ close drawer on route change
   useEffect(() => {
     setIsMenuOpen(false);
   }, [pathname]);
+
+  // ✅ ESC closes drawer
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsMenuOpen(false);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isMenuOpen]);
+
+  // ✅ lock body scroll while open
+  useEffect(() => {
+    if (!isMenuOpen) return;
+
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isMenuOpen]);
 
   const authLinks = [
     { href: "/dashboard", label: "Dashboard" },
@@ -203,7 +230,7 @@ export default function Nav() {
           {/* Backdrop */}
           <div
             className="fixed inset-0 z-[90] bg-[rgba(3,5,10,0.72)] backdrop-blur-sm"
-            onMouseDown={() => setIsMenuOpen(false)}
+            onClick={() => setIsMenuOpen(false)}
             aria-hidden="true"
           />
 
@@ -213,13 +240,12 @@ export default function Nav() {
               "fixed inset-y-0 right-0 z-[100] w-[86vw] max-w-sm",
               "border-l border-border bg-[rgba(10,12,20,0.92)] backdrop-blur",
               "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
-              "transition-transform duration-200 ease-out",
               "translate-x-0",
             ].join(" ")}
             role="dialog"
             aria-modal="true"
             aria-label="Mobile navigation"
-            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
           >
             <div className="flex h-full flex-col">
               {/* Header */}
@@ -277,7 +303,10 @@ export default function Nav() {
                     key={link.href}
                     className="rounded-2xl border border-border bg-surface2/50 px-4 py-3"
                   >
-                    <NavLink href={link.href} onClick={() => setIsMenuOpen(false)}>
+                    <NavLink
+                      href={link.href}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
                       {link.label}
                     </NavLink>
                   </div>
