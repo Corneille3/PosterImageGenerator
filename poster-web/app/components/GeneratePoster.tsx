@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 const STYLES = [
   {
@@ -503,6 +504,7 @@ export default function GeneratePoster() {
   };
 
   return (
+  <>
     <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
       {/* LEFT: controls panel */}
       <div className="rounded-3xl border border-border bg-surface/70 shadow-soft backdrop-blur">
@@ -569,7 +571,7 @@ export default function GeneratePoster() {
               <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
                 <label className="text-sm font-medium text-text">Prompt</label>
 
-                {/* ✅ Selected style chip (B) */}
+                {/* ✅ Selected style chip */}
                 {selectedStyle ? (
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <div className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent">
@@ -595,9 +597,7 @@ export default function GeneratePoster() {
                   </div>
                 ) : (
                   <div className="mt-3 flex items-center gap-2">
-                    <span className="text-xs text-muted">
-                      No style selected.
-                    </span>
+                    <span className="text-xs text-muted">No style selected.</span>
                     <button
                       type="button"
                       onClick={() => setActiveTab("style")}
@@ -635,15 +635,13 @@ export default function GeneratePoster() {
             </div>
           ) : null}
 
-          {/* TAB: PRESETS (A) */}
+          {/* TAB: PRESETS */}
           {activeTab === "presets" ? (
             <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-text">Presets</div>
-                  <div className="mt-1 text-xs text-muted">
-                    Search and tap a preset to fill your prompt.
-                  </div>
+              <div>
+                <div className="text-sm font-semibold text-text">Presets</div>
+                <div className="mt-1 text-xs text-muted">
+                  Search and tap a preset to fill your prompt.
                 </div>
               </div>
 
@@ -825,92 +823,93 @@ export default function GeneratePoster() {
           outputFormat={outputFormat}
         />
       </div>
+    </div>
 
-      {/* Mobile sticky action bar */}
-      <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 border-t border-border bg-[rgba(15,18,32,0.85)] backdrop-blur">
-        <div className="mx-auto max-w-5xl px-4 py-3">
-          {/* Quick settings row (mobile) */}
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted">Ratio</span>
-              <div className="inline-flex overflow-hidden rounded-xl border border-border bg-surface/40">
-                {ASPECT_RATIOS.map((a) => (
-                  <button
-                    key={a.value}
-                    type="button"
-                    onClick={() => setAspectRatio(a.value)}
-                    className={[
-                      "px-3 py-1.5 text-[11px] font-semibold transition",
-                      aspectRatio === a.value
-                        ? "bg-accent/20 text-accent"
-                        : "text-text hover:bg-surface2/60",
-                    ].join(" ")}
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted">Format</span>
-              <div className="inline-flex overflow-hidden rounded-xl border border-border bg-surface/40">
-                {OUTPUT_FORMATS.map((f) => (
-                  <button
-                    key={f.value}
-                    type="button"
-                    onClick={() => setOutputFormat(f.value)}
-                    className={[
-                      "px-3 py-1.5 text-[11px] font-semibold transition",
-                      outputFormat === f.value
-                        ? "bg-accent/20 text-accent"
-                        : "text-text hover:bg-surface2/60",
-                    ].join(" ")}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+    {/* Mobile sticky action bar (outside the grid) */}
+    <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 border-t border-border bg-[rgba(15,18,32,0.85)] backdrop-blur">
+      <div className="mx-auto max-w-5xl px-4 py-3">
+        {/* Quick settings row (mobile) */}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-muted">Ratio</span>
+            <div className="inline-flex overflow-hidden rounded-xl border border-border bg-surface/40">
+              {ASPECT_RATIOS.map((a) => (
+                <button
+                  key={a.value}
+                  type="button"
+                  onClick={() => setAspectRatio(a.value)}
+                  className={[
+                    "px-3 py-1.5 text-[11px] font-semibold transition",
+                    aspectRatio === a.value
+                      ? "bg-accent/20 text-accent"
+                      : "text-text hover:bg-surface2/60",
+                  ].join(" ")}
+                >
+                  {a.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            {creditsRemaining !== null ? (
-              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/40 px-3 py-1.5">
-                <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
-                <span className="text-sm text-muted">Credits</span>
-                <span className="text-sm font-semibold text-text">
-                  {creditsRemaining}
-                </span>
-              </div>
-            ) : (
-              <div className="text-xs text-muted"> </div>
-            )}
-
-            <button
-              type="button"
-              onClick={generate}
-              disabled={!canGenerate}
-              className={[
-                "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition",
-                "bg-accent hover:bg-accent2 disabled:opacity-50",
-                "shadow-[0_10px_30px_rgba(168,85,247,0.25)]",
-                "min-w-[160px]",
-              ].join(" ")}
-            >
-              {loading ? "Generating…" : "Generate"}
-            </button>
-          </div>
-
-          {creditsRemaining !== null && creditsRemaining <= 0 ? (
-            <div className="mt-2 rounded-2xl border border-danger/25 bg-danger/10 p-3 text-xs text-muted">
-              You’re out of credits. Check again in 24h for 10 more.
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-muted">Format</span>
+            <div className="inline-flex overflow-hidden rounded-xl border border-border bg-surface/40">
+              {OUTPUT_FORMATS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  onClick={() => setOutputFormat(f.value)}
+                  className={[
+                    "px-3 py-1.5 text-[11px] font-semibold transition",
+                    outputFormat === f.value
+                      ? "bg-accent/20 text-accent"
+                      : "text-text hover:bg-surface2/60",
+                  ].join(" ")}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
-          ) : null}
+          </div>
         </div>
+
+        <div className="flex items-center justify-between gap-3">
+          {creditsRemaining !== null ? (
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/40 px-3 py-1.5">
+              <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
+              <span className="text-sm text-muted">Credits</span>
+              <span className="text-sm font-semibold text-text">
+                {creditsRemaining}
+              </span>
+            </div>
+          ) : (
+            <div className="text-xs text-muted"> </div>
+          )}
+
+          <button
+            type="button"
+            onClick={generate}
+            disabled={!canGenerate}
+            className={[
+              "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition",
+              "bg-accent hover:bg-accent2 disabled:opacity-50",
+              "shadow-[0_10px_30px_rgba(168,85,247,0.25)]",
+              "min-w-[160px]",
+            ].join(" ")}
+          >
+            {loading ? "Generating…" : "Generate"}
+          </button>
+        </div>
+
+        {creditsRemaining !== null && creditsRemaining <= 0 ? (
+          <div className="mt-2 rounded-2xl border border-danger/25 bg-danger/10 p-3 text-xs text-muted">
+            You’re out of credits. Check again in 24h for 10 more.
+          </div>
+        ) : null}
       </div>
     </div>
-  );
+  </>
+);
 }
 
 function PreviewPanel({
