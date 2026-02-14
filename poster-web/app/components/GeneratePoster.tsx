@@ -927,6 +927,50 @@ function PreviewPanel({
   aspectRatio: string;
   outputFormat: string;
 }) {
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [rotate, setRotate] = useState(0);
+
+  const canInteract = Boolean(imageUrl) && !loading;
+
+  const clamp = (v: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, v));
+
+  const zoomIn = () => setZoom((z) => clamp(Number((z + 0.25).toFixed(2)), 1, 3));
+  const zoomOut = () =>
+    setZoom((z) => clamp(Number((z - 0.25).toFixed(2)), 1, 3));
+  const rotateRight = () => setRotate((r) => (r + 90) % 360);
+  const resetView = () => {
+    setZoom(1);
+    setRotate(0);
+  };
+
+  const openFullscreen = () => {
+    if (!imageUrl) return;
+    setIsFullscreen(true);
+  };
+
+  const closeFullscreen = () => {
+    setIsFullscreen(false);
+  };
+
+  // ESC closes fullscreen
+  useEffect(() => {
+    if (!isFullscreen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeFullscreen();
+      if (e.key === "+" || e.key === "=") zoomIn();
+      if (e.key === "-" || e.key === "_") zoomOut();
+      if (e.key.toLowerCase() === "r") rotateRight();
+      if (e.key === "0") resetView();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullscreen]);
+
   if (loading) {
     return (
       <div className="overflow-hidden rounded-3xl border border-accent/20 bg-surface shadow-soft">
@@ -985,40 +1029,198 @@ function PreviewPanel({
   }
 
   return (
-    <div className="rounded-3xl border border-border bg-surface shadow-soft">
-      <div className="flex items-center justify-between gap-3 border-b border-border p-4 sm:p-5">
-        <div>
-          <div className="text-sm font-semibold text-text">Result</div>
-          <div className="mt-1 text-xs text-muted">
-            {aspectRatio} • {outputFormat.toUpperCase()}
+    <>
+      <div className="rounded-3xl border border-border bg-surface shadow-soft">
+        <div className="flex items-center justify-between gap-3 border-b border-border p-4 sm:p-5">
+          <div>
+            <div className="text-sm font-semibold text-text">Result</div>
+            <div className="mt-1 text-xs text-muted">
+              {aspectRatio} • {outputFormat.toUpperCase()}
+            </div>
+          </div>
+
+          {/* ✅ Rotate is now visible even without fullscreen */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={rotateRight}
+              disabled={!canInteract}
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+              title="Rotate 90°"
+            >
+              Rotate
+            </button>
+
+            <button
+              type="button"
+              onClick={resetView}
+              disabled={!canInteract}
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+              title="Reset view"
+            >
+              Reset
+            </button>
+
+            <button
+              type="button"
+              onClick={openFullscreen}
+              disabled={!canInteract}
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+              title="Fullscreen"
+            >
+              Fullscreen
+            </button>
+
+            <a
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+              href={imageUrl}
+              target="_blank"
+              rel="noreferrer"
+              title="Open in new tab"
+            >
+              Open
+            </a>
           </div>
         </div>
 
-        <a
-          className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
-          href={imageUrl}
-          target="_blank"
-          rel="noreferrer"
-        >
-          Open
-        </a>
-      </div>
+        <div className="p-4 sm:p-5">
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface2">
+            <div
+              className="inline-block w-full"
+              style={{
+                transform: `scale(${zoom}) rotate(${rotate}deg)`,
+                transformOrigin: "center center",
+                transition: "transform 120ms ease-out",
+              }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt="poster"
+                className={[
+                  "h-auto w-full object-cover cursor-zoom-in",
+                  "transition duration-500 ease-out",
+                  imageLoaded ? "opacity-100" : "opacity-0",
+                ].join(" ")}
+                onLoad={() => setImageLoaded(true)}
+                // ✅ mobile-friendly open
+                onPointerUp={openFullscreen}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") openFullscreen();
+                }}
+              />
+            </div>
+          </div>
 
-      <div className="p-4 sm:p-5">
-        <div className="overflow-hidden rounded-2xl border border-border bg-surface2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imageUrl}
-            alt="poster"
-            className={[
-              "h-auto w-full object-cover",
-              "transition duration-500 ease-out",
-              imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-[0.98]",
-            ].join(" ")}
-            onLoad={() => setImageLoaded(true)}
-          />
+          <div className="mt-3 text-xs text-muted">
+            Tip: click/tap the image for fullscreen. Rotate works on this preview too.
+          </div>
         </div>
       </div>
-    </div>
+
+      {/* Fullscreen modal */}
+      {isFullscreen && (
+        <div
+          className="fixed inset-0 z-[300] bg-[rgba(3,5,10,0.82)]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Poster preview"
+          onClick={closeFullscreen}
+        >
+          <div
+            className="relative mx-auto h-full w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-2xl border border-border bg-[rgba(15,18,32,0.92)] px-3 py-3 backdrop-blur">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-text truncate">
+                  Poster preview
+                </div>
+                <div className="mt-0.5 text-xs text-muted">
+                  Zoom: {(zoom * 100).toFixed(0)}% • Rotate: {rotate}°
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={zoomOut}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                  title="Zoom out (-)"
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  onClick={zoomIn}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                  title="Zoom in (+)"
+                >
+                  +
+                </button>
+                <button
+                  type="button"
+                  onClick={rotateRight}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                  title="Rotate (R)"
+                >
+                  Rotate
+                </button>
+                <button
+                  type="button"
+                  onClick={resetView}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                  title="Reset (0)"
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  onClick={closeFullscreen}
+                  className="rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2"
+                  title="Close (Esc)"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div className="flex h-[calc(100%-72px)] items-center justify-center">
+              <div className="max-h-full max-w-full overflow-hidden rounded-3xl border border-border bg-[rgba(15,18,32,0.6)] shadow-[0_30px_90px_rgba(0,0,0,0.6)]">
+                <div className="p-3 sm:p-4">
+                  <div className="relative max-h-[78vh] max-w-[92vw] overflow-auto rounded-2xl bg-black/20">
+                    <div
+                      className="inline-block"
+                      style={{
+                        transform: `scale(${zoom}) rotate(${rotate}deg)`,
+                        transformOrigin: "center center",
+                        transition: "transform 120ms ease-out",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={imageUrl}
+                        alt="poster fullscreen"
+                        className="block h-auto w-full select-none"
+                        draggable={false}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 text-center text-xs text-muted">
+              Shortcuts: <span className="text-text">Esc</span> close •{" "}
+              <span className="text-text">+</span>/<span className="text-text">-</span>{" "}
+              zoom • <span className="text-text">R</span> rotate •{" "}
+              <span className="text-text">0</span> reset
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
