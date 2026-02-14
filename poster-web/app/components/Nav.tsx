@@ -164,7 +164,7 @@ export default function Nav() {
           {/* Backdrop */}
           <div
             className={[
-              "fixed inset-0 z-50 bg-[rgba(15,18,32,0.70)] backdrop-blur-sm transition-opacity duration-200",
+              "fixed inset-0 z-50 bg-[rgba(3,5,10,0.72)] backdrop-blur-sm transition-opacity duration-200",
               isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none",
             ].join(" ")}
             onMouseDown={() => setIsMenuOpen(false)}
@@ -175,8 +175,8 @@ export default function Nav() {
           <div
             className={[
               "fixed inset-y-0 right-0 z-50 w-[86vw] max-w-sm",
-              "border-l border-border bg-surface/95 backdrop-blur",
-              "shadow-[0_30px_90px_rgba(0,0,0,0.60)]",
+              "border-l border-border bg-[rgba(10,12,20,0.92)] backdrop-blur",
+              "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
               "transition-transform duration-200 ease-out",
               isMenuOpen ? "translate-x-0" : "translate-x-full",
             ].join(" ")}
@@ -194,7 +194,7 @@ export default function Nav() {
                   type="button"
                   onClick={() => setIsMenuOpen(false)}
                   aria-label="Close menu"
-                  className="inline-flex items-center justify-center rounded-xl border border-border bg-surface2 px-2 py-2 hover:bg-surface transition"
+                  className="inline-flex items-center justify-center rounded-xl border border-border bg-surface2/70 px-2 py-2 hover:bg-surface2 transition"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -213,53 +213,61 @@ export default function Nav() {
                 </button>
               </div>
 
-              {/* Links */}
-              <nav className="flex flex-col gap-4 px-5 py-6 text-lg">
-                <NavLink href="/" onClick={() => setIsMenuOpen(false)}>
-                  Home
-                </NavLink>
+              {/* Links (more visible) */}
+              <nav className="flex flex-col gap-3 px-5 py-6 text-base">
+                {/* Wrap each NavLink in a “row” so the text is readable on the background */}
+                <div className="rounded-2xl border border-border bg-surface2/50 px-4 py-3">
+                  <NavLink href="/" onClick={() => setIsMenuOpen(false)}>
+                    Home
+                  </NavLink>
+                </div>
 
                 {status === "authenticated" &&
                   authLinks.map((link) => (
-                    <NavLink
+                    <div
                       key={link.href}
-                      href={link.href}
-                      onClick={() => setIsMenuOpen(false)}
+                      className="rounded-2xl border border-border bg-surface2/50 px-4 py-3"
                     >
-                      {link.label}
-                    </NavLink>
+                      <NavLink
+                        href={link.href}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {link.label}
+                      </NavLink>
+                    </div>
                   ))}
 
                 {landingLinks.map((link) => (
-                  <NavLink
+                  <div
                     key={link.href}
-                    href={link.href}
-                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-2xl border border-border bg-surface2/50 px-4 py-3"
                   >
-                    {link.label}
-                  </NavLink>
+                    <NavLink href={link.href} onClick={() => setIsMenuOpen(false)}>
+                      {link.label}
+                    </NavLink>
+                  </div>
                 ))}
               </nav>
 
               {/* Spacer */}
               <div className="flex-1" />
 
-              {/* Footer actions */}
-              <div className="border-t border-border px-5 py-5">
+              {/* Footer actions (not full width) */}
+              <div className="border-t border-border px-5 py-5 flex justify-center">
                 {status !== "authenticated" ? (
                   <Link
                     href="/api/auth/signin"
                     onClick={() => setIsMenuOpen(false)}
-                    className="w-full inline-flex items-center justify-center rounded-2xl bg-accent px-6 py-3 text-sm font-semibold text-white
+                    className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white
                               shadow-[0_0_34px_rgba(122,92,255,0.18)]
                               hover:bg-accent2 transition-colors"
                   >
-                    Sign in
+                    Sign in to generate
                   </Link>
                 ) : (
                   <button
                     type="button"
-                    className="w-full inline-flex items-center justify-center rounded-2xl border border-danger/25 bg-danger/10 px-6 py-3 text-sm text-text
+                    className="inline-flex items-center justify-center rounded-xl border border-danger/25 bg-danger/10 px-5 py-3 text-sm text-text
                               hover:bg-danger/15 transition-colors"
                     onClick={() => {
                       signOut();
