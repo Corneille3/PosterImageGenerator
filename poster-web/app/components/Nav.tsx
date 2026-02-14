@@ -62,7 +62,7 @@ export default function Nav() {
   ];
 
   const landingLinks = [
-    { href: "/#showcase", label: "Showcase" },
+    { href: "/#showcase-strip", label: "Showcase" },
     { href: "/#features", label: "Features" },
     { href: "/gallery", label: "Gallery" },
   ];
