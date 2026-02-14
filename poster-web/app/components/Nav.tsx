@@ -46,6 +46,7 @@ function NavLink({
 
 export default function Nav() {
   const { status } = useSession();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -55,6 +56,10 @@ export default function Nav() {
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
+
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [pathname]);
 
   const authLinks = [
     { href: "/dashboard", label: "Dashboard" },
@@ -68,7 +73,7 @@ export default function Nav() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-[rgba(15,18,32,0.95)] backdrop-blur">
+    <header className="sticky top-0 z-[80] border-b border-border bg-[rgba(15,18,32,0.95)] backdrop-blur">
       <div className="mx-auto max-w-6xl px-4 py-4 flex items-center justify-between">
         {/* Brand */}
         <Link
@@ -164,7 +169,7 @@ export default function Nav() {
           {/* Backdrop */}
           <div
             className={[
-              "fixed inset-0 z-50 bg-[rgba(3,5,10,0.72)] backdrop-blur-sm transition-opacity duration-200",
+              "fixed inset-y-0 right-0 z-[90] bg-[rgba(3,5,10,0.72)] backdrop-blur-sm transition-opacity duration-200",
               isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none",
             ].join(" ")}
             onMouseDown={() => setIsMenuOpen(false)}
