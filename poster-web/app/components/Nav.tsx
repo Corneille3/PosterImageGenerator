@@ -158,56 +158,131 @@ export default function Nav() {
         </div>
       </div>
 
-      {/* Mobile Full-Screen Overlay */}
-      {isMobile && isMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-[rgba(15,18,32,0.95)] backdrop-blur flex flex-col justify-center items-center gap-8 px-6 transition-transform duration-300">
-          <button
-            onClick={() => setIsMenuOpen(false)}
-            aria-label="Close menu"
-            className="absolute top-6 right-6 p-2 rounded-lg hover:bg-surface2 transition"
+      {/* Mobile Slide-in Drawer (right side) */}
+      {isMobile && (
+        <>
+          {/* Backdrop */}
+          <div
+            className={[
+              "fixed inset-0 z-50 bg-[rgba(3,5,10,0.72)] backdrop-blur-sm transition-opacity duration-200",
+              isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+            ].join(" ")}
+            onMouseDown={() => setIsMenuOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Drawer */}
+          <div
+            className={[
+              "fixed inset-y-0 right-0 z-50 w-[86vw] max-w-sm",
+              "border-l border-border bg-[rgba(10,12,20,0.92)] backdrop-blur",
+              "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
+              "transition-transform duration-200 ease-out",
+              isMenuOpen ? "translate-x-0" : "translate-x-full",
+            ].join(" ")}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile navigation"
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+            <div className="flex h-full flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <div className="text-sm font-semibold text-text">Menu</div>
 
-          {/* Links */}
-          <nav className="flex flex-col items-center gap-6 text-lg">
-            <NavLink href="/" onClick={() => setIsMenuOpen(false)}>Home</NavLink>
-            {status === "authenticated" &&
-              authLinks.map((link) => (
-                <NavLink key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}>
-                  {link.label}
-                </NavLink>
-              ))}
-            {landingLinks.map((link) => (
-              <NavLink key={link.href} href={link.href} onClick={() => setIsMenuOpen(false)}>
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
+                <button
+                  type="button"
+                  onClick={() => setIsMenuOpen(false)}
+                  aria-label="Close menu"
+                  className="inline-flex items-center justify-center rounded-xl border border-border bg-surface2/70 px-2 py-2 hover:bg-surface2 transition"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-text"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
 
-          {/* Sign in / Sign out */}
-          <div className="mt-8">
-            {status !== "authenticated" ? (
-              <Link
-                href="/api/auth/signin"
-                onClick={() => setIsMenuOpen(false)}
-                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-6 py-3 text-sm text-text hover:bg-surface2 transition-colors"
-              >
-                Sign in
-              </Link>
-            ) : (
-              <button
-                className="rounded-xl border border-danger/25 bg-danger/10 px-6 py-3 text-sm text-text hover:bg-danger/15 transition-colors"
-                onClick={() => { signOut(); setIsMenuOpen(false); }}
-              >
-                Sign out
-              </button>
-            )}
+              {/* Links (more visible) */}
+              <nav className="flex flex-col gap-3 px-5 py-6 text-base">
+                {/* Wrap each NavLink in a “row” so the text is readable on the background */}
+                <div className="rounded-2xl border border-border bg-surface2/50 px-4 py-3">
+                  <NavLink href="/" onClick={() => setIsMenuOpen(false)}>
+                    Home
+                  </NavLink>
+                </div>
+
+                {status === "authenticated" &&
+                  authLinks.map((link) => (
+                    <div
+                      key={link.href}
+                      className="rounded-2xl border border-border bg-surface2/50 px-4 py-3"
+                    >
+                      <NavLink
+                        href={link.href}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {link.label}
+                      </NavLink>
+                    </div>
+                  ))}
+
+                {landingLinks.map((link) => (
+                  <div
+                    key={link.href}
+                    className="rounded-2xl border border-border bg-surface2/50 px-4 py-3"
+                  >
+                    <NavLink href={link.href} onClick={() => setIsMenuOpen(false)}>
+                      {link.label}
+                    </NavLink>
+                  </div>
+                ))}
+              </nav>
+
+              {/* Spacer */}
+              <div className="flex-1" />
+
+              {/* Footer actions (not full width) */}
+              <div className="border-t border-border px-5 py-5 flex justify-center">
+                {status !== "authenticated" ? (
+                  <Link
+                    href="/api/auth/signin"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white
+                              shadow-[0_0_34px_rgba(122,92,255,0.18)]
+                              hover:bg-accent2 transition-colors"
+                  >
+                    Sign in to generate
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-xl border border-danger/25 bg-danger/10 px-5 py-3 text-sm text-text
+                              hover:bg-danger/15 transition-colors"
+                    onClick={() => {
+                      signOut();
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    Sign out
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
+
     </header>
   );
 }
