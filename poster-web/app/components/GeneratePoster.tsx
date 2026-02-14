@@ -86,8 +86,8 @@ const PRESETS = [
 ];
 
 const ASPECT_RATIOS = [
-  { value: "1:1", label: "Square (1:1 · default)" },
-  { value: "16:9", label: "Widescreen (16:9)" },
+  { value: "1:1", label: "Square" },
+  { value: "16:9", label: "Wide" },
 ] as const;
 
 const OUTPUT_FORMATS = [
@@ -98,58 +98,127 @@ const OUTPUT_FORMATS = [
 type AspectRatio = (typeof ASPECT_RATIOS)[number]["value"];
 type OutputFormat = (typeof OUTPUT_FORMATS)[number]["value"];
 
-function Section({
-  title,
-  subtitle,
-  open,
-  onToggle,
-  right,
+type TabId = "prompt" | "presets" | "style" | "options";
+
+function TabButton({
+  active,
+  onClick,
   children,
 }: {
-  title: string;
-  subtitle?: string;
-  open: boolean;
-  onToggle: () => void;
-  right?: React.ReactNode;
+  active: boolean;
+  onClick: () => void;
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-surface2/50">
-      <button
-        type="button"
-        onClick={onToggle}
-        className="flex w-full items-start justify-between gap-3 p-4 text-left transition hover:bg-surface2/70 sm:p-5"
-        aria-expanded={open}
-      >
-        <div>
-          <div className="text-sm font-semibold text-text">{title}</div>
-          {subtitle ? <div className="mt-1 text-xs text-muted">{subtitle}</div> : null}
-        </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "inline-flex items-center justify-center rounded-xl px-3 py-2 text-xs font-semibold transition",
+        active
+          ? "bg-accent/15 text-accent border border-accent/25"
+          : "bg-surface text-text border border-border hover:bg-surface2",
+      ].join(" ")}
+    >
+      {children}
+    </button>
+  );
+}
 
-        <div className="flex items-center gap-2">
-          {right ? <div className="hidden sm:block">{right}</div> : null}
-          <span
-            className={[
-              "inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface text-muted transition",
-              open ? "rotate-180" : "",
-            ].join(" ")}
-            aria-hidden="true"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M6 9l6 6 6-6"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-        </div>
-      </button>
+function StylePreviewBadge({ id }: { id: string }) {
+  // Small visual header per style (no external images)
+  const map: Record<
+    string,
+    { top: string; mid: string; bottom: string; tag: string }
+  > = {
+    cinematic: {
+      top: "bg-gradient-to-r from-accent/35 via-accent/10 to-transparent",
+      mid: "bg-gradient-to-b from-white/10 to-transparent",
+      bottom: "bg-gradient-to-t from-black/35 to-transparent",
+      tag: "CINEMA",
+    },
+    noir: {
+      top: "bg-gradient-to-r from-white/10 via-transparent to-white/5",
+      mid: "bg-gradient-to-b from-black/20 to-transparent",
+      bottom: "bg-gradient-to-t from-black/45 to-transparent",
+      tag: "NOIR",
+    },
+    animation: {
+      top: "bg-gradient-to-r from-accent/25 via-white/10 to-accent/10",
+      mid: "bg-gradient-to-b from-white/12 to-transparent",
+      bottom: "bg-gradient-to-t from-black/25 to-transparent",
+      tag: "KIDS",
+    },
+    horror: {
+      top: "bg-gradient-to-r from-black/40 via-white/5 to-transparent",
+      mid: "bg-gradient-to-b from-black/30 to-transparent",
+      bottom: "bg-gradient-to-t from-black/55 to-transparent",
+      tag: "HORROR",
+    },
+  };
 
-      {open ? <div className="border-t border-border p-4 sm:p-5">{children}</div> : null}
+  const v = map[id] ?? map.cinematic;
+
+  return (
+    <div className="relative h-16 overflow-hidden rounded-xl border border-border bg-surface2">
+      <div className={["absolute inset-0", v.top].join(" ")} />
+      <div className={["absolute inset-0", v.mid].join(" ")} />
+      <div className={["absolute inset-0", v.bottom].join(" ")} />
+      <div className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface/60 px-2 py-1 text-[10px] font-semibold text-text backdrop-blur">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_10px_rgba(168,85,247,0.55)]" />
+        {v.tag}
+      </div>
+      <div className="absolute bottom-2 right-2 text-[10px] text-muted">
+        preview
+      </div>
     </div>
+  );
+}
+
+function StyleCard({
+  name,
+  blurb,
+  previewId,
+  selected,
+  onClick,
+}: {
+  name: string;
+  blurb: string;
+  previewId: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "text-left rounded-2xl border bg-surface p-4 transition",
+        "hover:bg-surface2 active:scale-[0.99]",
+        "focus:outline-none focus:ring-2 focus:ring-accent/35",
+        selected
+          ? "border-accent/40 bg-accent/10 shadow-[0_10px_30px_rgba(168,85,247,0.12)]"
+          : "border-border",
+      ].join(" ")}
+    >
+      <StylePreviewBadge id={previewId} />
+
+      <div className="mt-3 flex items-start justify-between gap-2">
+        <div className="font-semibold text-text">{name}</div>
+        {selected ? (
+          <span className="text-xs rounded-full border border-accent/30 bg-accent/15 px-2 py-1 text-accent">
+            Selected
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-1 text-xs text-muted">{blurb}</div>
+
+      <div className="mt-3 inline-flex items-center gap-2 text-xs text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent/70" />
+        Adds “Style:” to prompt
+      </div>
+    </button>
   );
 }
 
@@ -169,10 +238,11 @@ export default function GeneratePoster() {
   const [error, setError] = useState<string | null>(null);
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
 
-  // UI: collapsible groups
-  const [openPresets, setOpenPresets] = useState(true);
-  const [openOptions, setOpenOptions] = useState(true);
-  const [openStyle, setOpenStyle] = useState(true);
+  // Tabs
+  const [activeTab, setActiveTab] = useState<TabId>("prompt");
+
+  // Presets filter (Presets tab)
+  const [presetQuery, setPresetQuery] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -206,6 +276,15 @@ export default function GeneratePoster() {
     const hasCredits = creditsRemaining === null ? true : creditsRemaining > 0;
     return status === "authenticated" && hasPrompt && hasCredits && !loading;
   }, [prompt, status, creditsRemaining, loading]);
+
+  const filteredPresets = useMemo(() => {
+    const q = presetQuery.trim().toLowerCase();
+    if (!q) return PRESETS;
+    return PRESETS.filter(
+      (p) =>
+        p.label.toLowerCase().includes(q) || p.prompt.toLowerCase().includes(q)
+    );
+  }, [presetQuery]);
 
   function applyStyle(styleId: string) {
     const style = STYLES.find((s) => s.id === styleId);
@@ -246,6 +325,7 @@ export default function GeneratePoster() {
     const trimmed = prompt.trim();
     if (!trimmed) {
       setError("Please enter a prompt.");
+      setActiveTab("prompt");
       return;
     }
 
@@ -310,24 +390,62 @@ export default function GeneratePoster() {
     }
   };
 
+  const setPresetIntoPrompt = (presetPrompt: string) => {
+    setPrompt(presetPrompt);
+    // keep user in flow: prompt tab
+    setActiveTab("prompt");
+  };
+
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
-      {/* LEFT: controls (more panel-like) */}
+      {/* LEFT: controls panel */}
       <div className="rounded-3xl border border-border bg-surface/70 shadow-soft backdrop-blur">
         <div className="border-b border-border p-4 sm:p-6">
           <h2 className="text-lg font-semibold tracking-tight text-text">
             Generate a poster
           </h2>
           <p className="mt-1 text-sm text-muted">
-            Describe a scene, mood, and style — we’ll turn it into a cinematic movie poster.
+            Describe a scene, mood, and style — we’ll turn it into a cinematic
+            movie poster.
           </p>
+
+          {/* Tabs */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <TabButton
+              active={activeTab === "prompt"}
+              onClick={() => setActiveTab("prompt")}
+            >
+              Prompt
+            </TabButton>
+            <TabButton
+              active={activeTab === "presets"}
+              onClick={() => setActiveTab("presets")}
+            >
+              Presets
+            </TabButton>
+            <TabButton
+              active={activeTab === "style"}
+              onClick={() => setActiveTab("style")}
+            >
+              Style
+            </TabButton>
+            <TabButton
+              active={activeTab === "options"}
+              onClick={() => setActiveTab("options")}
+            >
+              Options
+            </TabButton>
+          </div>
         </div>
 
-        <div className="grid gap-4 p-4 sm:p-6">
-          {/* Error banner (more visible, near the top) */}
+        {/* Body: bottom padding so mobile sticky bar doesn't cover content */}
+        <div className="grid gap-4 p-4 pb-28 sm:p-6 sm:pb-32 lg:pb-6">
+          {/* Error banner */}
           {error ? (
             <div className="rounded-2xl border border-danger/25 bg-danger/10 p-4">
-              <div className="text-sm font-semibold text-text">Something went wrong</div>
+              <div className="text-sm font-semibold text-text">
+                Something went wrong
+              </div>
               <div className="mt-1 text-sm text-muted">{error}</div>
             </div>
           ) : null}
@@ -339,168 +457,207 @@ export default function GeneratePoster() {
             </div>
           ) : null}
 
-          {/* Prompt */}
-          <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
-            <label className="text-sm font-medium text-text">Prompt</label>
+          {/* TAB: PROMPT */}
+          {activeTab === "prompt" ? (
+            <div className="grid gap-4">
+              <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
+                <label className="text-sm font-medium text-text">Prompt</label>
 
-            <div className="mt-3">
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder='Example: "A lone astronaut walking through neon rain on a cyberpunk street, dramatic lighting, cinematic"'
-                className="min-h-[130px] w-full resize-none rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
-              />
-            </div>
+                <div className="mt-3">
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder='Example: "A lone astronaut walking through neon rain on a cyberpunk street, dramatic lighting, cinematic"'
+                    className="min-h-[150px] w-full resize-none rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  />
+                </div>
 
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <button
-                type="button"
-                onClick={copyPrompt}
-                disabled={!prompt.trim()}
-                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
-              >
-                Copy prompt
-              </button>
+                {/* ✅ Inline presets RIGHT BELOW prompt area */}
+                
 
-              <span className="text-xs text-muted">
-                Tip: add genre + mood + lighting for best results.
-              </span>
-            </div>
-          </div>
-
-          {/* Presets (collapsible) */}
-          <Section
-            title="Presets"
-            subtitle="Quick-start prompts you can tweak"
-            open={openPresets}
-            onToggle={() => setOpenPresets((v) => !v)}
-          >
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPrompt(p.prompt)}
-                  className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-accent/15 hover:border-accent/30 transition"
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </Section>
-
-          {/* Options (collapsible) */}
-          <Section
-            title="Generation options"
-            subtitle="Sent to the backend (aspect ratio + format)"
-            open={openOptions}
-            onToggle={() => setOpenOptions((v) => !v)}
-            right={
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  resetOptions();
-                }}
-                className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-surface2 transition"
-              >
-                Reset
-              </button>
-            }
-          >
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <div className="mb-1 text-xs font-medium text-muted">Aspect ratio</div>
-                <select
-                  value={aspectRatio}
-                  onChange={(e) => setAspectRatio(e.target.value as AspectRatio)}
-                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/40"
-                >
-                  {ASPECT_RATIOS.map((a) => (
-                    <option key={a.value} value={a.value}>
-                      {a.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <div className="mb-1 text-xs font-medium text-muted">Output format</div>
-                <select
-                  value={outputFormat}
-                  onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
-                  className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/40"
-                >
-                  {OUTPUT_FORMATS.map((f) => (
-                    <option key={f.value} value={f.value}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </Section>
-
-          {/* Style (collapsible) */}
-          <Section
-            title="Style"
-            subtitle="Adds a style hint to your prompt"
-            open={openStyle}
-            onToggle={() => setOpenStyle((v) => !v)}
-            right={
-              selectedStyleId ? (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    clearStyle();
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition"
-                >
-                  ✕ Clear
-                </button>
-              ) : null
-            }
-          >
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {STYLES.map((s) => {
-                const selected = selectedStyleId === s.id;
-                return (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <button
-                    key={s.id}
                     type="button"
-                    onClick={() => applyStyle(s.id)}
+                    onClick={copyPrompt}
+                    disabled={!prompt.trim()}
+                    className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+                  >
+                    Copy prompt
+                  </button>
+
+                  <span className="text-xs text-muted">
+                    Tip: add genre + mood + lighting for best results.
+                  </span>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* TAB: PRESETS */}
+          {activeTab === "presets" ? (
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-text">Presets</div>
+                  <div className="mt-1 text-xs text-muted">
+                    Search and tap a preset to fill your prompt.
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <input
+                  value={presetQuery}
+                  onChange={(e) => setPresetQuery(e.target.value)}
+                  placeholder="Search presets… (e.g., sci-fi, noir, safari)"
+                  className="w-full rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+                />
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {filteredPresets.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setPresetIntoPrompt(p.prompt)}
                     className={[
-                      "text-left rounded-2xl border p-4 transition",
-                      selected
-                        ? "border-accent/40 bg-accent/10"
-                        : "border-border bg-surface hover:bg-surface2",
+                      "rounded-2xl border border-border bg-surface p-4 text-left transition",
+                      "hover:bg-surface2 active:scale-[0.99]",
+                      "focus:outline-none focus:ring-2 focus:ring-accent/35",
                     ].join(" ")}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="font-semibold text-text">{s.name}</div>
-                      {selected ? (
-                        <span className="text-xs rounded-full border border-accent/30 bg-accent/15 px-2 py-1 text-accent">
-                          Selected
-                        </span>
-                      ) : null}
+                      <div className="font-semibold text-text">{p.label}</div>
+                      <span className="text-xs rounded-full border border-border bg-surface2 px-2 py-1 text-muted">
+                        Use
+                      </span>
                     </div>
-                    <div className="mt-1 text-xs text-muted">{s.blurb}</div>
+                    <div className="mt-2 line-clamp-3 text-xs text-muted">
+                      {p.prompt}
+                    </div>
                   </button>
-                );
-              })}
-            </div>
-          </Section>
+                ))}
+              </div>
 
-          {/* Actions (credits closer to generate) */}
-          <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              {/* Credits pill near action */}
+              {filteredPresets.length === 0 ? (
+                <div className="mt-4 rounded-2xl border border-border bg-surface2 p-4 text-sm text-muted">
+                  No presets found. Try another search.
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* TAB: STYLE */}
+          {activeTab === "style" ? (
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-text">Style</div>
+                  <div className="mt-1 text-xs text-muted">
+                    Pick a look — it will append a “Style:” hint to your prompt.
+                  </div>
+                </div>
+
+                {selectedStyleId ? (
+                  <button
+                    type="button"
+                    onClick={clearStyle}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition"
+                  >
+                    ✕ Clear
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {STYLES.map((s) => (
+                  <StyleCard
+                    key={s.id}
+                    name={s.name}
+                    blurb={s.blurb}
+                    previewId={s.id}
+                    selected={selectedStyleId === s.id}
+                    onClick={() => applyStyle(s.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* TAB: OPTIONS */}
+          {activeTab === "options" ? (
+            <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-text">
+                    Generation options
+                  </div>
+                  <div className="mt-1 text-xs text-muted">
+                    Aspect ratio and output format are sent to the backend.
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={resetOptions}
+                  className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-surface2 transition"
+                >
+                  Reset
+                </button>
+              </div>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <div className="mb-1 text-xs font-medium text-muted">
+                    Aspect ratio
+                  </div>
+                  <select
+                    value={aspectRatio}
+                    onChange={(e) =>
+                      setAspectRatio(e.target.value as AspectRatio)
+                    }
+                    className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  >
+                    {ASPECT_RATIOS.map((a) => (
+                      <option key={a.value} value={a.value}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="mb-1 text-xs font-medium text-muted">
+                    Output format
+                  </div>
+                  <select
+                    value={outputFormat}
+                    onChange={(e) =>
+                      setOutputFormat(e.target.value as OutputFormat)
+                    }
+                    className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/40"
+                  >
+                    {OUTPUT_FORMATS.map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Desktop-only actions (mobile uses sticky bar) */}
+          <div className="hidden lg:block rounded-2xl border border-border bg-surface p-4 sm:p-5">
+            <div className="flex items-center justify-between gap-3">
               {creditsRemaining !== null ? (
                 <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5">
                   <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
                   <span className="text-sm text-muted">Credits</span>
-                  <span className="text-sm font-semibold text-text">{creditsRemaining}</span>
+                  <span className="text-sm font-semibold text-text">
+                    {creditsRemaining}
+                  </span>
                 </div>
               ) : (
                 <div className="text-xs text-muted"> </div>
@@ -514,14 +671,12 @@ export default function GeneratePoster() {
                   "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition",
                   "bg-accent hover:bg-accent2 disabled:opacity-50",
                   "shadow-[0_10px_30px_rgba(168,85,247,0.25)]",
-                  "w-full sm:w-auto",
                 ].join(" ")}
               >
                 {loading ? "Generating poster…" : "Generate poster"}
               </button>
             </div>
 
-            {/* No credits hint */}
             {creditsRemaining !== null && creditsRemaining <= 0 ? (
               <div className="mt-3 rounded-2xl border border-danger/25 bg-danger/10 p-4 text-sm text-muted">
                 You’re out of credits. Check again in 24h for 10 more.
@@ -531,7 +686,7 @@ export default function GeneratePoster() {
         </div>
       </div>
 
-      {/* RIGHT: preview (separate panel) */}
+      {/* RIGHT: preview */}
       <div className="lg:sticky lg:top-24">
         <PreviewPanel
           loading={loading}
@@ -541,6 +696,90 @@ export default function GeneratePoster() {
           aspectRatio={aspectRatio}
           outputFormat={outputFormat}
         />
+      </div>
+
+      {/* Mobile sticky action bar */}
+      <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 border-t border-border bg-[rgba(15,18,32,0.85)] backdrop-blur">
+        <div className="mx-auto max-w-5xl px-4 py-3">
+          {/* Quick settings row (mobile) */}
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-muted">Ratio</span>
+              <div className="inline-flex overflow-hidden rounded-xl border border-border bg-surface/40">
+                {ASPECT_RATIOS.map((a) => (
+                  <button
+                    key={a.value}
+                    type="button"
+                    onClick={() => setAspectRatio(a.value)}
+                    className={[
+                      "px-3 py-1.5 text-[11px] font-semibold transition",
+                      aspectRatio === a.value
+                        ? "bg-accent/20 text-accent"
+                        : "text-text hover:bg-surface2/60",
+                    ].join(" ")}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-muted">Format</span>
+              <div className="inline-flex overflow-hidden rounded-xl border border-border bg-surface/40">
+                {OUTPUT_FORMATS.map((f) => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setOutputFormat(f.value)}
+                    className={[
+                      "px-3 py-1.5 text-[11px] font-semibold transition",
+                      outputFormat === f.value
+                        ? "bg-accent/20 text-accent"
+                        : "text-text hover:bg-surface2/60",
+                    ].join(" ")}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-3">
+            {creditsRemaining !== null ? (
+              <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/40 px-3 py-1.5">
+                <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
+                <span className="text-sm text-muted">Credits</span>
+                <span className="text-sm font-semibold text-text">
+                  {creditsRemaining}
+                </span>
+              </div>
+            ) : (
+              <div className="text-xs text-muted"> </div>
+            )}
+
+            <button
+              type="button"
+              onClick={generate}
+              disabled={!canGenerate}
+              className={[
+                "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition",
+                "bg-accent hover:bg-accent2 disabled:opacity-50",
+                "shadow-[0_10px_30px_rgba(168,85,247,0.25)]",
+                "min-w-[160px]",
+              ].join(" ")}
+            >
+              {loading ? "Generating…" : "Generate"}
+            </button>
+          </div>
+
+          {creditsRemaining !== null && creditsRemaining <= 0 ? (
+            <div className="mt-2 rounded-2xl border border-danger/25 bg-danger/10 p-3 text-xs text-muted">
+              You’re out of credits. Check again in 24h for 10 more.
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -609,7 +848,7 @@ function PreviewPanel({
               <div className="text-sm font-semibold text-text">No poster yet</div>
               <div className="max-w-[26rem] text-xs text-muted">
                 Write a prompt, pick a style, then click{" "}
-                <span className="text-text">Generate poster</span>.
+                <span className="text-text">Generate</span>.
               </div>
             </div>
           </div>
