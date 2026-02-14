@@ -356,6 +356,25 @@ export default function GeneratePoster() {
     return STYLES.find((s) => s.id === selectedStyleId) ?? null;
   }, [selectedStyleId]);
 
+  const dismissError = () => setError(null);
+
+  const raiseError = (msg: string, tab?: TabId) => {
+    setError(msg);
+    if (tab) setActiveTab(tab);
+    // scroll the panel top so banner is seen (mobile + desktop)
+    requestAnimationFrame(() => {
+      const el = document.getElementById("generator-panel-top");
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  useEffect(() => {
+    if (creditsRemaining !== null && creditsRemaining <= 0) {
+    setError("You’re out of credits. Check again in 24h for 10 more.");
+    setActiveTab("options"); // optional
+    }
+  }, [creditsRemaining]);
+
   useEffect(() => {
   const el = promptRef.current;
   if (!el) return;
@@ -440,19 +459,18 @@ export default function GeneratePoster() {
     setImageLoaded(false);
 
     if (status !== "authenticated") {
-      setError("Please sign in to generate a poster.");
+      raiseError("Please sign in to generate a poster.", "prompt");
       return;
     }
 
     const trimmed = prompt.trim();
     if (!trimmed) {
-      setError("Please enter a prompt.");
-      setActiveTab("prompt");
+      raiseError("Please enter a prompt.", "prompt");
       return;
     }
 
     if (creditsRemaining !== null && creditsRemaining <= 0) {
-      setError("You have no credits remaining.");
+      raiseError("You have no credits remaining.", "options");
       return;
     }
 
@@ -482,7 +500,7 @@ export default function GeneratePoster() {
           setError("You have no credits remaining.");
           return;
         }
-        setError(data?.error || `Generation failed (${res.status}).`);
+        raiseError(data?.error || `Generation failed (${res.status}).`, "prompt");
         return;
       }
 
@@ -532,7 +550,7 @@ export default function GeneratePoster() {
     <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
       {/* LEFT: controls panel */}
       <div className="rounded-3xl border border-border bg-surface/70 shadow-soft backdrop-blur">
-        <div className="border-b border-border p-4 sm:p-6">
+        <div id="generator-panel-top" className="border-b border-border p-4 sm:p-6">
           <h2 className="text-lg font-semibold tracking-tight text-text">
             Generate a poster
           </h2>
@@ -574,11 +592,23 @@ export default function GeneratePoster() {
         <div className="grid gap-4 p-4 pb-28 sm:p-6 sm:pb-32 lg:pb-6">
           {/* Error banner */}
           {error ? (
-            <div className="rounded-2xl border border-danger/25 bg-danger/10 p-4">
-              <div className="text-sm font-semibold text-text">
-                Something went wrong
+            <div className="sticky top-2 z-10 rounded-2xl border border-danger/25 bg-danger/12 p-4 shadow-soft backdrop-blur">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-text">
+                    Something went wrong
+                  </div>
+                  <div className="mt-1 text-sm text-muted">{error}</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={dismissError}
+                  className="shrink-0 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-text hover:bg-surface2 transition"
+                >
+                  Dismiss
+                </button>
               </div>
-              <div className="mt-1 text-sm text-muted">{error}</div>
             </div>
           ) : null}
 
@@ -867,12 +897,6 @@ export default function GeneratePoster() {
                 {loading ? "Generating poster…" : "Generate poster"}
               </button>
             </div>
-
-            {creditsRemaining !== null && creditsRemaining <= 0 ? (
-              <div className="mt-3 rounded-2xl border border-danger/25 bg-danger/10 p-4 text-sm text-muted">
-                You’re out of credits. Check again in 24h for 10 more.
-              </div>
-            ) : null}
           </div>
         </div>
       </div>
