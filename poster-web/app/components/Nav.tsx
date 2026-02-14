@@ -84,7 +84,12 @@ export default function Nav() {
             className="inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/30
                        shadow-[0_0_20px_var(--brand-gradient-from)] animate-pulse-slow
                        transition-transform duration-200 hover:scale-105 overflow-hidden"
-            style={{ '--brand-gradient-from': '#3dff9a', '--brand-gradient-to': '#7c5cff' } as React.CSSProperties}
+            style={
+              {
+                "--brand-gradient-from": "#3dff9a",
+                "--brand-gradient-to": "#7c5cff",
+              } as React.CSSProperties
+            }
           >
             <img
               src="/images/logo1.jpg"
@@ -97,10 +102,12 @@ export default function Nav() {
             Poster Generator
           </span>
 
-          <span className="ml-1 inline-block rounded-full bg-accent px-3 py-1 text-xs sm:text-sm font-semibold text-white
-                          shadow-[0_0_10px_rgba(122,92,255,0.5)]
-                          animate-pulse-slow
-                          transition-transform duration-200 hover:scale-110 hover:bg-accent2">
+          <span
+            className="ml-1 inline-block rounded-full bg-accent px-3 py-1 text-xs sm:text-sm font-semibold text-white
+                       shadow-[0_0_10px_rgba(122,92,255,0.5)]
+                       animate-pulse-slow
+                       transition-transform duration-200 hover:scale-110 hover:bg-accent2"
+          >
             Beta
           </span>
         </Link>
@@ -108,9 +115,19 @@ export default function Nav() {
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6">
           <NavLink href="/">Home</NavLink>
+
           {status === "authenticated" &&
-            authLinks.map((link) => <NavLink key={link.href} href={link.href}>{link.label}</NavLink>)}
-          {landingLinks.map((link) => <NavLink key={link.href} href={link.href}>{link.label}</NavLink>)}
+            authLinks.map((link) => (
+              <NavLink key={link.href} href={link.href}>
+                {link.label}
+              </NavLink>
+            ))}
+
+          {landingLinks.map((link) => (
+            <NavLink key={link.href} href={link.href}>
+              {link.label}
+            </NavLink>
+          ))}
         </nav>
 
         {/* Right side */}
@@ -121,9 +138,21 @@ export default function Nav() {
               onClick={() => setIsMenuOpen(true)}
               aria-label="Open menu"
               className="inline-flex items-center justify-center p-2 rounded-lg hover:bg-surface2 transition"
+              type="button"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-text" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="w-6 h-6 text-text"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
               </svg>
             </button>
           )}
@@ -137,7 +166,11 @@ export default function Nav() {
                          hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_0_50px_rgba(122,92,255,0.3)]
                          transition-all duration-200 active:translate-y-0"
             >
-              <img src="/images/poster-icon.png" alt="Poster Generator Icon" className="w-5 h-5" />
+              <img
+                src="/images/poster-icon.png"
+                alt="Poster Generator Icon"
+                className="w-5 h-5"
+              />
               Open App
             </Link>
           )}
@@ -155,6 +188,7 @@ export default function Nav() {
               <button
                 className="rounded-xl border border-danger/25 bg-danger/10 px-3 py-2 text-sm text-text hover:bg-danger/15 transition-colors hover:-translate-y-0.5 active:translate-y-0"
                 onClick={() => signOut()}
+                type="button"
               >
                 Sign out
               </button>
@@ -164,14 +198,11 @@ export default function Nav() {
       </div>
 
       {/* Mobile Slide-in Drawer (right side) */}
-      {isMobile && (
+      {isMobile && isMenuOpen && (
         <>
           {/* Backdrop */}
           <div
-            className={[
-              "fixed inset-y-0 right-0 z-[90] bg-[rgba(3,5,10,0.72)] backdrop-blur-sm transition-opacity duration-200",
-              isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none",
-            ].join(" ")}
+            className="fixed inset-0 z-[90] bg-[rgba(3,5,10,0.72)] backdrop-blur-sm"
             onMouseDown={() => setIsMenuOpen(false)}
             aria-hidden="true"
           />
@@ -179,11 +210,11 @@ export default function Nav() {
           {/* Drawer */}
           <div
             className={[
-              "fixed inset-y-0 right-0 z-50 w-[86vw] max-w-sm",
+              "fixed inset-y-0 right-0 z-[100] w-[86vw] max-w-sm",
               "border-l border-border bg-[rgba(10,12,20,0.92)] backdrop-blur",
               "shadow-[0_30px_90px_rgba(0,0,0,0.65)]",
               "transition-transform duration-200 ease-out",
-              isMenuOpen ? "translate-x-0" : "translate-x-full",
+              "translate-x-0",
             ].join(" ")}
             role="dialog"
             aria-modal="true"
@@ -218,9 +249,8 @@ export default function Nav() {
                 </button>
               </div>
 
-              {/* Links (more visible) */}
+              {/* Links */}
               <nav className="flex flex-col gap-3 px-5 py-6 text-base">
-                {/* Wrap each NavLink in a “row” so the text is readable on the background */}
                 <div className="rounded-2xl border border-border bg-surface2/50 px-4 py-3">
                   <NavLink href="/" onClick={() => setIsMenuOpen(false)}>
                     Home
@@ -254,18 +284,17 @@ export default function Nav() {
                 ))}
               </nav>
 
-              {/* Spacer */}
               <div className="flex-1" />
 
-              {/* Footer actions (not full width) */}
+              {/* Footer actions */}
               <div className="border-t border-border px-5 py-5 flex justify-center">
                 {status !== "authenticated" ? (
                   <Link
                     href="/api/auth/signin"
                     onClick={() => setIsMenuOpen(false)}
                     className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white
-                              shadow-[0_0_34px_rgba(122,92,255,0.18)]
-                              hover:bg-accent2 transition-colors"
+                               shadow-[0_0_34px_rgba(122,92,255,0.18)]
+                               hover:bg-accent2 transition-colors"
                   >
                     Sign in to generate
                   </Link>
@@ -273,7 +302,7 @@ export default function Nav() {
                   <button
                     type="button"
                     className="inline-flex items-center justify-center rounded-xl border border-danger/25 bg-danger/10 px-5 py-3 text-sm text-text
-                              hover:bg-danger/15 transition-colors"
+                               hover:bg-danger/15 transition-colors"
                     onClick={() => {
                       signOut();
                       setIsMenuOpen(false);
@@ -287,7 +316,6 @@ export default function Nav() {
           </div>
         </>
       )}
-
     </header>
   );
 }
