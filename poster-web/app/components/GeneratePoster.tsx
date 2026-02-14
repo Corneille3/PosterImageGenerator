@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const STYLES = [
@@ -95,6 +95,9 @@ const OUTPUT_FORMATS = [
   { value: "png", label: "PNG" },
   { value: "jpeg", label: "JPEG" },
 ] as const;
+
+const PROMPT_MAX_CHARS = 3000;
+
 
 type AspectRatio = (typeof ASPECT_RATIOS)[number]["value"];
 type OutputFormat = (typeof OUTPUT_FORMATS)[number]["value"];
@@ -330,8 +333,9 @@ function PresetCard({
 
 export default function GeneratePoster() {
   const { status } = useSession();
-
   const [prompt, setPrompt] = useState("");
+  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
@@ -351,6 +355,16 @@ export default function GeneratePoster() {
     if (!selectedStyleId) return null;
     return STYLES.find((s) => s.id === selectedStyleId) ?? null;
   }, [selectedStyleId]);
+
+  useEffect(() => {
+  const el = promptRef.current;
+  if (!el) return;
+
+  // auto-grow
+  el.style.height = "0px";
+  const next = Math.min(el.scrollHeight, 320); // cap so it doesn't get ridiculous
+  el.style.height = `${next}px`;
+}, [prompt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -498,6 +512,16 @@ export default function GeneratePoster() {
     }
   };
 
+  const clearPrompt = () => {
+  setPrompt("");
+  setSelectedStyleId(null);
+  setError(null);
+  setPresetQuery("");
+  setImageUrl(null);
+  setImageLoaded(false);
+};
+
+
   const setPresetIntoPrompt = (presetPrompt: string) => {
     setPrompt(presetPrompt);
     setActiveTab("prompt");
@@ -610,22 +634,63 @@ export default function GeneratePoster() {
 
                 <div className="mt-3">
                   <textarea
+                    ref={promptRef}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
+                    maxLength={PROMPT_MAX_CHARS}
                     placeholder='Example: "A lone astronaut walking through neon rain on a cyberpunk street, dramatic lighting, cinematic"'
                     className="min-h-[150px] w-full resize-none rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                   />
+
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="text-xs text-muted">
+                      Tip: add <span className="text-text">genre</span> +{" "}
+                      <span className="text-text">mood</span> +{" "}
+                      <span className="text-text">lighting</span>.
+                    </div>
+
+                    {(() => {
+                      const count = prompt.length;
+                      const near = count >= Math.floor(PROMPT_MAX_CHARS * 0.9);
+                      const atMax = count >= PROMPT_MAX_CHARS;
+
+                      return (
+                        <div
+                          className={[
+                            "text-xs tabular-nums",
+                            atMax ? "text-danger" : near ? "text-accent" : "text-muted",
+                          ].join(" ")}
+                          aria-live="polite"
+                        >
+                          {count} / {PROMPT_MAX_CHARS}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
 
+
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <button
-                    type="button"
-                    onClick={copyPrompt}
-                    disabled={!prompt.trim()}
-                    className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
-                  >
-                    Copy prompt
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={copyPrompt}
+                      disabled={!prompt.trim()}
+                      className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+                    >
+                      Copy prompt
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={clearPrompt}
+                      disabled={!prompt.trim() && !selectedStyleId}
+                      className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+                      title="Clear prompt and style"
+                    >
+                      Clear
+                    </button>
+                  </div>
 
                   <span className="text-xs text-muted">
                     Tip: add genre + mood + lighting for best results.
