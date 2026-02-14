@@ -3,7 +3,6 @@
 import { useSession } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 
-
 const STYLES = [
   {
     id: "cinematic",
@@ -99,13 +98,67 @@ const OUTPUT_FORMATS = [
 type AspectRatio = (typeof ASPECT_RATIOS)[number]["value"];
 type OutputFormat = (typeof OUTPUT_FORMATS)[number]["value"];
 
+function Section({
+  title,
+  subtitle,
+  open,
+  onToggle,
+  right,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  open: boolean;
+  onToggle: () => void;
+  right?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-surface2/50">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex w-full items-start justify-between gap-3 p-4 text-left transition hover:bg-surface2/70 sm:p-5"
+        aria-expanded={open}
+      >
+        <div>
+          <div className="text-sm font-semibold text-text">{title}</div>
+          {subtitle ? <div className="mt-1 text-xs text-muted">{subtitle}</div> : null}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {right ? <div className="hidden sm:block">{right}</div> : null}
+          <span
+            className={[
+              "inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border bg-surface text-muted transition",
+              open ? "rotate-180" : "",
+            ].join(" ")}
+            aria-hidden="true"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M6 9l6 6 6-6"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </div>
+      </button>
+
+      {open ? <div className="border-t border-border p-4 sm:p-5">{children}</div> : null}
+    </div>
+  );
+}
+
 export default function GeneratePoster() {
   const { status } = useSession();
 
   const [prompt, setPrompt] = useState("");
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
 
-  // ✅ only supported defaults
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("png");
 
@@ -116,32 +169,37 @@ export default function GeneratePoster() {
   const [error, setError] = useState<string | null>(null);
   const [creditsRemaining, setCreditsRemaining] = useState<number | null>(null);
 
-useEffect(() => {
-  let cancelled = false;
+  // UI: collapsible groups
+  const [openPresets, setOpenPresets] = useState(true);
+  const [openOptions, setOpenOptions] = useState(true);
+  const [openStyle, setOpenStyle] = useState(true);
 
-  async function loadCredits() {
-    if (status !== "authenticated") return;
+  useEffect(() => {
+    let cancelled = false;
 
-    try {
-      const res = await fetch("/api/credits", { method: "GET" });
-      if (!res.ok) return;
+    async function loadCredits() {
+      if (status !== "authenticated") return;
 
-      const data = await res.json();
-      const c = data?.credits;
+      try {
+        const res = await fetch("/api/credits", { method: "GET" });
+        if (!res.ok) return;
 
-      if (!cancelled && typeof c === "number") {
-        setCreditsRemaining(c);
+        const data = await res.json();
+        const c = data?.credits;
+
+        if (!cancelled && typeof c === "number") {
+          setCreditsRemaining(c);
+        }
+      } catch {
+        // ignore
       }
-    } catch {
-      // ignore
     }
-  }
 
-  loadCredits();
-  return () => {
-    cancelled = true;
-  };
-}, [status]);
+    loadCredits();
+    return () => {
+      cancelled = true;
+    };
+  }, [status]);
 
   const canGenerate = useMemo(() => {
     const hasPrompt = Boolean(prompt.trim());
@@ -253,82 +311,109 @@ useEffect(() => {
   };
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_0.95fr] lg:items-start">
-      {/* LEFT: controls */}
-      <div className="grid gap-4">
-        {/* Top row */}
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight text-text">
-              Generate a poster
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Describe a scene, mood, and style — we’ll turn it into a cinematic
-              movie poster.
-            </p>
-          </div>
-
-          {/* Credits pill */}
-          {creditsRemaining !== null ? (
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5">
-              <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
-              <span className="text-sm text-muted">Credits</span>
-              <span className="text-sm font-semibold text-text">
-                {creditsRemaining}
-              </span>
-            </div>
-          ) : null}
+    <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
+      {/* LEFT: controls (more panel-like) */}
+      <div className="rounded-3xl border border-border bg-surface/70 shadow-soft backdrop-blur">
+        <div className="border-b border-border p-4 sm:p-6">
+          <h2 className="text-lg font-semibold tracking-tight text-text">
+            Generate a poster
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Describe a scene, mood, and style — we’ll turn it into a cinematic movie poster.
+          </p>
         </div>
 
-        {/* Form card */}
-        <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
-          <label className="text-sm font-medium text-text">Prompt</label>
+        <div className="grid gap-4 p-4 sm:p-6">
+          {/* Error banner (more visible, near the top) */}
+          {error ? (
+            <div className="rounded-2xl border border-danger/25 bg-danger/10 p-4">
+              <div className="text-sm font-semibold text-text">Something went wrong</div>
+              <div className="mt-1 text-sm text-muted">{error}</div>
+            </div>
+          ) : null}
 
-          {/* Presets */}
-          <div className="mt-3 mb-3 flex flex-wrap gap-2">
-            {PRESETS.map((p) => (
+          {/* Auth hint */}
+          {status !== "authenticated" ? (
+            <div className="rounded-2xl border border-border bg-surface2 p-4 text-sm text-muted">
+              Sign in to generate posters and track your history.
+            </div>
+          ) : null}
+
+          {/* Prompt */}
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-soft sm:p-5">
+            <label className="text-sm font-medium text-text">Prompt</label>
+
+            <div className="mt-3">
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder='Example: "A lone astronaut walking through neon rain on a cyberpunk street, dramatic lighting, cinematic"'
+                className="min-h-[130px] w-full resize-none rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
+              />
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <button
-                key={p.id}
                 type="button"
-                onClick={() => setPrompt(p.prompt)}
-                className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-accent/15 hover:border-accent/30 transition"
+                onClick={copyPrompt}
+                disabled={!prompt.trim()}
+                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
               >
-                {p.label}
+                Copy prompt
               </button>
-            ))}
+
+              <span className="text-xs text-muted">
+                Tip: add genre + mood + lighting for best results.
+              </span>
+            </div>
           </div>
 
-          {/* Options */}
-          <div className="mb-4 rounded-2xl border border-border bg-surface2/60 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-text">
-                  Generation options
-                </div>
-                <div className="mt-1 text-xs text-muted">
-                  Aspect ratio and output format are sent to the backend.
-                </div>
-              </div>
+          {/* Presets (collapsible) */}
+          <Section
+            title="Presets"
+            subtitle="Quick-start prompts you can tweak"
+            open={openPresets}
+            onToggle={() => setOpenPresets((v) => !v)}
+          >
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPrompt(p.prompt)}
+                  className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-accent/15 hover:border-accent/30 transition"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </Section>
 
+          {/* Options (collapsible) */}
+          <Section
+            title="Generation options"
+            subtitle="Sent to the backend (aspect ratio + format)"
+            open={openOptions}
+            onToggle={() => setOpenOptions((v) => !v)}
+            right={
               <button
                 type="button"
-                onClick={resetOptions}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  resetOptions();
+                }}
                 className="rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-text hover:bg-surface2 transition"
               >
                 Reset
               </button>
-            </div>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            }
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <div className="mb-1 text-xs font-medium text-muted">
-                  Aspect ratio
-                </div>
+                <div className="mb-1 text-xs font-medium text-muted">Aspect ratio</div>
                 <select
                   value={aspectRatio}
-                  onChange={(e) =>
-                    setAspectRatio(e.target.value as AspectRatio)
-                  }
+                  onChange={(e) => setAspectRatio(e.target.value as AspectRatio)}
                   className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/40"
                 >
                   {ASPECT_RATIOS.map((a) => (
@@ -340,14 +425,10 @@ useEffect(() => {
               </div>
 
               <div>
-                <div className="mb-1 text-xs font-medium text-muted">
-                  Output format
-                </div>
+                <div className="mb-1 text-xs font-medium text-muted">Output format</div>
                 <select
                   value={outputFormat}
-                  onChange={(e) =>
-                    setOutputFormat(e.target.value as OutputFormat)
-                  }
+                  onChange={(e) => setOutputFormat(e.target.value as OutputFormat)}
                   className="w-full rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-accent/40"
                 >
                   {OUTPUT_FORMATS.map((f) => (
@@ -358,23 +439,29 @@ useEffect(() => {
                 </select>
               </div>
             </div>
-          </div>
+          </Section>
 
-          {/* Style grid (RESTORED: label + clear style) */}
-          <div className="mb-3">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-sm font-medium text-text">Style</div>
-              {selectedStyleId ? (
+          {/* Style (collapsible) */}
+          <Section
+            title="Style"
+            subtitle="Adds a style hint to your prompt"
+            open={openStyle}
+            onToggle={() => setOpenStyle((v) => !v)}
+            right={
+              selectedStyleId ? (
                 <button
                   type="button"
-                  onClick={clearStyle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    clearStyle();
+                  }}
                   className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent hover:bg-accent/20 transition"
                 >
-                  ✕ Clear style
+                  ✕ Clear
                 </button>
-              ) : null}
-            </div>
-
+              ) : null
+            }
+          >
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {STYLES.map((s) => {
                 const selected = selectedStyleId === s.id;
@@ -403,69 +490,48 @@ useEffect(() => {
                 );
               })}
             </div>
-          </div>
+          </Section>
 
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder='Example: "A lone astronaut walking through neon rain on a cyberpunk street, dramatic lighting, cinematic"'
-            className="min-h-[110px] w-full resize-none rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
-          />
+          {/* Actions (credits closer to generate) */}
+          <div className="rounded-2xl border border-border bg-surface p-4 sm:p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              {/* Credits pill near action */}
+              {creditsRemaining !== null ? (
+                <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5">
+                  <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(168,85,247,0.6)]" />
+                  <span className="text-sm text-muted">Credits</span>
+                  <span className="text-sm font-semibold text-text">{creditsRemaining}</span>
+                </div>
+              ) : (
+                <div className="text-xs text-muted"> </div>
+              )}
 
-          {/* Actions */}
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={copyPrompt}
-                disabled={!prompt.trim()}
-                className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+                onClick={generate}
+                disabled={!canGenerate}
+                className={[
+                  "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition",
+                  "bg-accent hover:bg-accent2 disabled:opacity-50",
+                  "shadow-[0_10px_30px_rgba(168,85,247,0.25)]",
+                  "w-full sm:w-auto",
+                ].join(" ")}
               >
-                Copy prompt
+                {loading ? "Generating poster…" : "Generate poster"}
               </button>
-
-              <span className="hidden text-xs text-muted sm:inline">
-                Tip: add genre + mood + lighting for best results.
-              </span>
             </div>
 
-            <button
-              type="button"
-              onClick={generate}
-              disabled={!canGenerate}
-              className="inline-flex items-center justify-center rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent2 disabled:opacity-50"
-            >
-              {loading ? "Generating poster…" : "Generate poster"}
-            </button>
-          </div>
-
-          {/* Error */}
-          {error ? (
-            <div className="mt-4 rounded-2xl border border-danger/25 bg-danger/10 p-4">
-              <div className="text-sm font-semibold text-text">
-                Something went wrong
+            {/* No credits hint */}
+            {creditsRemaining !== null && creditsRemaining <= 0 ? (
+              <div className="mt-3 rounded-2xl border border-danger/25 bg-danger/10 p-4 text-sm text-muted">
+                You’re out of credits. Check again in 24h for 10 more.
               </div>
-              <div className="mt-1 text-sm text-muted">{error}</div>
-            </div>
-          ) : null}
-
-          {/* Auth hint */}
-          {status !== "authenticated" ? (
-            <div className="mt-4 rounded-2xl border border-border bg-surface2 p-4 text-sm text-muted">
-              Sign in to generate posters and track your history.
-            </div>
-          ) : null}
-
-          {/* No credits hint */}
-          {creditsRemaining !== null && creditsRemaining <= 0 ? (
-            <div className="mt-4 rounded-2xl border border-danger/25 bg-danger/10 p-4 text-sm text-muted">
-              You’re out of credits. Check again in 24 for 10 more. FREE!!!!!!
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </div>
       </div>
 
-      {/* RIGHT: preview */}
+      {/* RIGHT: preview (separate panel) */}
       <div className="lg:sticky lg:top-24">
         <PreviewPanel
           loading={loading}
@@ -497,7 +563,7 @@ function PreviewPanel({
 }) {
   if (loading) {
     return (
-      <div className="overflow-hidden rounded-2xl border border-accent/20 bg-surface2 shadow-soft">
+      <div className="overflow-hidden rounded-3xl border border-accent/20 bg-surface shadow-soft">
         <div className="flex items-center justify-between gap-3 border-b border-border p-4 sm:p-5">
           <div>
             <div className="text-sm font-semibold text-text">Generating…</div>
@@ -508,8 +574,7 @@ function PreviewPanel({
           <div className="text-xs text-muted">Preview</div>
         </div>
 
-        {/* glow + shimmer */}
-        <div className="relative h-[420px] w-full">
+        <div className="relative h-[420px] w-full bg-surface2">
           <div className="absolute inset-0 animate-pulse bg-surface2" />
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-[shimmer_1.2s_infinite]" />
           <div className="absolute inset-0 shadow-[inset_0_0_0_1px_rgba(122,92,255,0.18)]" />
@@ -518,10 +583,9 @@ function PreviewPanel({
     );
   }
 
-  // RESTORED: empty state with small round "logo"
   if (!imageUrl) {
     return (
-      <div className="rounded-2xl border border-border bg-surface shadow-soft">
+      <div className="rounded-3xl border border-border bg-surface shadow-soft">
         <div className="border-b border-border p-4 sm:p-5">
           <div className="text-sm font-semibold text-text">Preview</div>
           <div className="mt-1 text-xs text-muted">
@@ -544,7 +608,8 @@ function PreviewPanel({
               </div>
               <div className="text-sm font-semibold text-text">No poster yet</div>
               <div className="max-w-[26rem] text-xs text-muted">
-                Write a prompt, pick a style, then click <span className="text-text">Generate poster</span>.
+                Write a prompt, pick a style, then click{" "}
+                <span className="text-text">Generate poster</span>.
               </div>
             </div>
           </div>
@@ -554,7 +619,7 @@ function PreviewPanel({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-surface shadow-soft">
+    <div className="rounded-3xl border border-border bg-surface shadow-soft">
       <div className="flex items-center justify-between gap-3 border-b border-border p-4 sm:p-5">
         <div>
           <div className="text-sm font-semibold text-text">Result</div>
