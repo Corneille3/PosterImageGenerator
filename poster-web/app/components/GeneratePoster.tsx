@@ -989,12 +989,6 @@ export default function GeneratePoster() {
             {loading ? "Generating…" : "Generate"}
           </button>
         </div>
-
-        {creditsRemaining !== null && creditsRemaining <= 0 ? (
-          <div className="mt-2 rounded-2xl border border-danger/25 bg-danger/10 p-3 text-xs text-muted">
-            You’re out of credits. Check again in 24h for 10 more.
-          </div>
-        ) : null}
       </div>
     </div>
   </>
