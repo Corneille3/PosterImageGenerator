@@ -383,7 +383,7 @@ export default function GeneratePoster() {
   el.style.height = "0px";
   const next = Math.min(el.scrollHeight, 320); // cap so it doesn't get ridiculous
   el.style.height = `${next}px`;
-}, [prompt]);
+  }, [prompt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -698,7 +698,6 @@ export default function GeneratePoster() {
                     })()}
                   </div>
                 </div>
-
 
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex flex-wrap items-center gap-2">
