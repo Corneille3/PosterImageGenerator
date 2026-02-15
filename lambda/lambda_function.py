@@ -723,16 +723,13 @@ def handle_edit(event):
         # 3) Save output to S3
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         prefix = KEY_PREFIX if KEY_PREFIX.endswith("/") else f"{KEY_PREFIX}/"
-        key = f"{prefix}{ts}-{req_id}.{output_format}"
 
-        if output_format == "png":
-            content_type = "image/png"
-        elif output_format in ("jpg", "jpeg"):
-            content_type = "image/jpeg"
-        elif output_format == "webp":
-            content_type = "image/webp"
-        else:
-            content_type = "application/octet-stream"
+        # Canonicalize extension BEFORE writing
+        ext = "jpg" if output_format == "jpeg" else output_format
+
+        key = f"{prefix}{ts}-{req_id}.{ext}"
+
+        content_type = "image/png" if ext == "png" else "image/jpeg"
 
         s3.put_object(
             Bucket=BUCKET_NAME,
@@ -740,7 +737,7 @@ def handle_edit(event):
             Body=image_bytes,
             ContentType=content_type,
         )
-
+        
         presigned_url = s3.generate_presigned_url(
             ClientMethod="get_object",
             Params={"Bucket": BUCKET_NAME, "Key": key},
