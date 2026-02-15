@@ -596,7 +596,7 @@ def handle_edit(event):
           "prompt": "...",
           "image": "<base64>",
           "strength": 0.35,            # optional (0..1)
-          "output_format": "png|jpg",  # optional
+          "output_format": "png|jpeg|jpg|webp",  # optional
           "seed": 0,                   # optional
           "negative_prompt": "..."     # optional
         }
@@ -611,16 +611,24 @@ def handle_edit(event):
 
     body = _json_body(event)
 
+    # ---- Limits (tune via env if you want) ----
+    MAX_PROMPT_CHARS = int(os.environ.get("EDIT_MAX_PROMPT_CHARS", "800"))
+    MAX_NEG_PROMPT_CHARS = int(os.environ.get("EDIT_MAX_NEG_PROMPT_CHARS", "800"))
+    MAX_IMAGE_BYTES = int(os.environ.get("EDIT_MAX_IMAGE_BYTES", str(5 * 1024 * 1024)))  # 5MB
+
     prompt = (body.get("prompt") or "").strip()
     if not prompt:
         return _resp(400, {"error": "Missing required parameter: prompt"})
+    if len(prompt) > MAX_PROMPT_CHARS:
+        return _resp(400, {"error": f"Prompt too long (max {MAX_PROMPT_CHARS} chars)"})
 
     image_b64 = body.get("image")
     if not image_b64 or not isinstance(image_b64, str):
         return _resp(400, {"error": "Missing required parameter: image (base64 string)"})
 
-
     negative_prompt = (body.get("negative_prompt") or "").strip()
+    if negative_prompt and len(negative_prompt) > MAX_NEG_PROMPT_CHARS:
+        negative_prompt = negative_prompt[:MAX_NEG_PROMPT_CHARS]
 
     strength = body.get("strength", None)
     if strength is None:
@@ -629,18 +637,15 @@ def handle_edit(event):
         strength = float(strength)
     except Exception:
         return _resp(400, {"error": "Invalid strength (must be a number)"})
-
-
     if strength < 0.0 or strength > 1.0:
         return _resp(400, {"error": "Invalid strength. Range: 0.0 to 1.0"})
 
-
     output_format = (body.get("output_format") or "png").strip().lower()
+    # normalize
     if output_format == "jpeg":
         output_format = "jpg"
     if output_format not in ALLOWED_OUTPUT_FORMATS:
         return _resp(400, {"error": f"Invalid output_format. Allowed: {sorted(ALLOWED_OUTPUT_FORMATS)}"})
-
 
     seed = body.get("seed", 0)
     try:
@@ -648,9 +653,21 @@ def handle_edit(event):
     except Exception:
         seed = 0
 
-
     ts_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     req_id = uuid.uuid4().hex
+
+    # ---- Decode input image early (before reserving credit) ----
+    # This avoids charging credits for obviously bad/huge payloads.
+    try:
+        in_image_bytes = base64.b64decode(image_b64, validate=True)
+    except Exception:
+        return _resp(400, {"error": "Invalid base64 in image field"})
+
+    if len(in_image_bytes) > MAX_IMAGE_BYTES:
+        return _resp(400, {"error": f"Image too large (max {MAX_IMAGE_BYTES} bytes)"})
+
+    # Re-encode normalized base64 (keeps payload consistent)
+    normalized_image_b64 = base64.b64encode(in_image_bytes).decode("utf-8")
 
     # 1) Reserve credit (same pool)
     try:
@@ -671,12 +688,10 @@ def handle_edit(event):
         raise
 
     try:
-        # 2) Invoke Bedrock (Stability image-to-image style body)
-        # NOTE: For Stability models on Bedrock, image-to-image commonly accepts:
-        #   prompt, image (base64), strength, output_format, seed, negative_prompt
+        # 2) Invoke Bedrock image-to-image
         request_body = {
             "prompt": prompt,
-            "image": image_b64,
+            "image": normalized_image_b64,
             "strength": strength,
             "output_format": output_format,
             "seed": seed,
@@ -698,16 +713,27 @@ def handle_edit(event):
         elif "artifacts" in data and data["artifacts"]:
             out_b64 = data["artifacts"][0].get("base64")
         else:
-            raise RuntimeError(f"No image in Bedrock response: {data}")
+            raise RuntimeError("No image in Bedrock response")
 
-        image_bytes = base64.b64decode(out_b64)
+        try:
+            image_bytes = base64.b64decode(out_b64, validate=True)
+        except Exception:
+            raise RuntimeError("Invalid base64 in Bedrock response image")
 
         # 3) Save output to S3
         ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         prefix = KEY_PREFIX if KEY_PREFIX.endswith("/") else f"{KEY_PREFIX}/"
         key = f"{prefix}{ts}-{req_id}.{output_format}"
 
-        content_type = "image/png" if output_format == "png" else "image/jpeg"
+        if output_format == "png":
+            content_type = "image/png"
+        elif output_format in ("jpg", "jpeg"):
+            content_type = "image/jpeg"
+        elif output_format == "webp":
+            content_type = "image/webp"
+        else:
+            content_type = "application/octet-stream"
+
         s3.put_object(
             Bucket=BUCKET_NAME,
             Key=key,
@@ -735,7 +761,7 @@ def handle_edit(event):
         )
 
         payload = {"presigned_url": presigned_url}
-        if remaining >= 0:
+        if isinstance(remaining, int) and remaining >= 0:
             payload["credits_remaining"] = remaining
 
         return _resp(200, payload)
@@ -753,8 +779,8 @@ def handle_edit(event):
             status="FAILED",
             error_message=str(e),
         )
-        return _resp(502, {"error": "Edit failed"})
-
+        # Helpful error message (safe)
+        return _resp(502, {"error": "Edit failed", "message": str(e)})
 
 def lambda_handler(event, context):
     event = event or {}
