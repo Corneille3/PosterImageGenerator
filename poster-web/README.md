@@ -20,6 +20,16 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Local Dev Auth Bypass (Edit API)
+
+For local testing of `POST /api/edit` without signing in, you can enable a dev-only bypass:
+
+```bash
+ALLOW_UNAUTH_EDIT=true
+```
+
+The bypass is automatically disabled in production (`NODE_ENV=production`), so authentication is always required in prod even if the flag is set.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

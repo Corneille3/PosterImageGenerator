@@ -22,11 +22,15 @@ const MAX_NEG_PROMPT_CHARS = Number(process.env.EDIT_MAX_NEG_PROMPT_CHARS ?? 800
 
 export async function POST(req: NextRequest) {
   try {
+    const allowUnauthEdit =
+      process.env.ALLOW_UNAUTH_EDIT === "true" &&
+      process.env.NODE_ENV !== "production";
+
     const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "";
 
     const token = await getToken({ req, secret });
 
-    if (!token) {
+    if (!token && !allowUnauthEdit) {
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -38,9 +42,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Accept either (your NextAuth config sets both)
-    const bearer = (token as any).accessToken || (token as any).idToken;
+    const bearer =
+      (token as any)?.accessToken || (token as any)?.idToken || "";
 
-    if (!bearer) {
+    if (!bearer && !allowUnauthEdit) {
       return NextResponse.json(
         {
           error: "Unauthorized",
@@ -165,14 +170,16 @@ export async function POST(req: NextRequest) {
     if (output_format) payload.output_format = output_format;
     if (negative_prompt) payload.negative_prompt = negative_prompt;
 
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (bearer) headers.Authorization = `Bearer ${bearer}`;
+
     const upstream = await fetch(
       `${apiBase}/moviePosterImageGenerator/edit`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${bearer}`,
-          "Content-Type": "application/json",
-        },
+        headers,
         body: JSON.stringify(payload),
         cache: "no-store",
       }

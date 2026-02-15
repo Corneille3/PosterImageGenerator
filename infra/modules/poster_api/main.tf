@@ -353,6 +353,16 @@ resource "aws_apigatewayv2_route" "share_post" {
   authorization_type = "JWT"
   authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
 }
+
+# POST /moviePosterImageGenerator/edit  (image edit)
+resource "aws_apigatewayv2_route" "edit_post" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST ${var.api_route_path}/edit"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt.id
+}
 # GET /moviePosterImageGenerator/share/{id}  (public share view)
 resource "aws_apigatewayv2_route" "share_get" {
   api_id    = aws_apigatewayv2_api.api.id
