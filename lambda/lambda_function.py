@@ -587,6 +587,174 @@ def get_http_path(event):
     # Fallback (REST API / other)
     return event.get("path") or ""
 
+def handle_edit(event):
+    """
+    Image-to-image edit:
+    - consumes 1 credit (same pool as text-to-image)
+    - expects JSON body:
+        {
+          "prompt": "...",
+          "image": "<base64>",
+          "strength": 0.35,            # optional (0..1)
+          "output_format": "png|jpg",  # optional
+          "seed": 0,                   # optional
+          "negative_prompt": "..."     # optional
+        }
+    - returns { presigned_url, credits_remaining? }
+    """
+    if not table:
+        return _resp(500, {"error": "DynamoDB table not configured"})
+
+    sub = _user_sub(event)
+    if not sub:
+        return _resp(401, {"error": "Unauthorized (missing JWT claims)"})
+
+    body = _json_body(event)
+
+    prompt = (body.get("prompt") or "").strip()
+    if not prompt:
+        return _resp(400, {"error": "Missing required parameter: prompt"})
+
+    image_b64 = body.get("image")
+    if not image_b64 or not isinstance(image_b64, str):
+        return _resp(400, {"error": "Missing required parameter: image (base64 string)"})
+
+
+    negative_prompt = (body.get("negative_prompt") or "").strip()
+
+    strength = body.get("strength", None)
+    if strength is None:
+        strength = 0.35
+    try:
+        strength = float(strength)
+    except Exception:
+        return _resp(400, {"error": "Invalid strength (must be a number)"})
+
+
+    if strength < 0.0 or strength > 1.0:
+        return _resp(400, {"error": "Invalid strength. Range: 0.0 to 1.0"})
+
+
+    output_format = (body.get("output_format") or "png").strip().lower()
+    if output_format == "jpeg":
+        output_format = "jpg"
+    if output_format not in ALLOWED_OUTPUT_FORMATS:
+        return _resp(400, {"error": f"Invalid output_format. Allowed: {sorted(ALLOWED_OUTPUT_FORMATS)}"})
+
+
+    seed = body.get("seed", 0)
+    try:
+        seed = int(seed)
+    except Exception:
+        seed = 0
+
+
+    ts_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    req_id = uuid.uuid4().hex
+
+    # 1) Reserve credit (same pool)
+    try:
+        remaining = reserve_credit_or_fail(sub)
+    except ValueError as e:
+        if str(e) == "OUT_OF_CREDITS":
+            write_history_best_effort(
+                sub=sub,
+                ts_iso=ts_iso,
+                req_id=req_id,
+                prompt=prompt,
+                aspect_ratio="",
+                output_format=output_format,
+                status="FAILED",
+                error_message="Out of credits",
+            )
+            return _resp(402, {"error": "Out of credits"})
+        raise
+
+    try:
+        # 2) Invoke Bedrock (Stability image-to-image style body)
+        # NOTE: For Stability models on Bedrock, image-to-image commonly accepts:
+        #   prompt, image (base64), strength, output_format, seed, negative_prompt
+        request_body = {
+            "prompt": prompt,
+            "image": image_b64,
+            "strength": strength,
+            "output_format": output_format,
+            "seed": seed,
+        }
+        if negative_prompt:
+            request_body["negative_prompt"] = negative_prompt
+
+        br = bedrock.invoke_model(
+            modelId=MODEL_ID,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(request_body),
+        )
+
+        data = json.loads(br["body"].read())
+
+        if "images" in data and data["images"]:
+            out_b64 = data["images"][0]
+        elif "artifacts" in data and data["artifacts"]:
+            out_b64 = data["artifacts"][0].get("base64")
+        else:
+            raise RuntimeError(f"No image in Bedrock response: {data}")
+
+        image_bytes = base64.b64decode(out_b64)
+
+        # 3) Save output to S3
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        prefix = KEY_PREFIX if KEY_PREFIX.endswith("/") else f"{KEY_PREFIX}/"
+        key = f"{prefix}{ts}-{req_id}.{output_format}"
+
+        content_type = "image/png" if output_format == "png" else "image/jpeg"
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=key,
+            Body=image_bytes,
+            ContentType=content_type,
+        )
+
+        presigned_url = s3.generate_presigned_url(
+            ClientMethod="get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": key},
+            ExpiresIn=URL_EXPIRES_SECONDS,
+            HttpMethod="GET",
+        )
+
+        # 4) Write history (best effort)
+        write_history_best_effort(
+            sub=sub,
+            ts_iso=ts_iso,
+            req_id=req_id,
+            prompt=prompt,
+            aspect_ratio="",
+            output_format=output_format,
+            status="SUCCESS",
+            s3_key=key,
+        )
+
+        payload = {"presigned_url": presigned_url}
+        if remaining >= 0:
+            payload["credits_remaining"] = remaining
+
+        return _resp(200, payload)
+
+    except Exception as e:
+        refund_credit_best_effort(sub)
+
+        write_history_best_effort(
+            sub=sub,
+            ts_iso=ts_iso,
+            req_id=req_id,
+            prompt=prompt,
+            aspect_ratio="",
+            output_format=output_format,
+            status="FAILED",
+            error_message=str(e),
+        )
+        return _resp(502, {"error": "Edit failed"})
+
 
 def lambda_handler(event, context):
     event = event or {}
@@ -643,6 +811,12 @@ def lambda_handler(event, context):
         if not sub:
             return _resp(401, {"error": "Unauthorized"})
         return handle_create_share(event, sub=sub)
+
+    # POST /moviePosterImageGenerator (EDIT)
+    # --- EDIT ENDPOINT ---
+    if method == "POST" and path.endswith("/edit"):
+        return handle_edit(event)
+
 
     # 7) GET /moviePosterImageGenerator  (credits)
     # Keep this LAST among GET routes, otherwise it could “catch” other GETs depending on path matching.
