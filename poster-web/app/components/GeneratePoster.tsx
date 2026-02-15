@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 const STYLES = [
@@ -95,6 +95,9 @@ const OUTPUT_FORMATS = [
   { value: "png", label: "PNG" },
   { value: "jpeg", label: "JPEG" },
 ] as const;
+
+const PROMPT_MAX_CHARS = 3000;
+
 
 type AspectRatio = (typeof ASPECT_RATIOS)[number]["value"];
 type OutputFormat = (typeof OUTPUT_FORMATS)[number]["value"];
@@ -330,8 +333,9 @@ function PresetCard({
 
 export default function GeneratePoster() {
   const { status } = useSession();
-
   const [prompt, setPrompt] = useState("");
+  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>(null);
 
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>("1:1");
@@ -351,6 +355,35 @@ export default function GeneratePoster() {
     if (!selectedStyleId) return null;
     return STYLES.find((s) => s.id === selectedStyleId) ?? null;
   }, [selectedStyleId]);
+
+  const dismissError = () => setError(null);
+
+  const raiseError = (msg: string, tab?: TabId) => {
+    setError(msg);
+    if (tab) setActiveTab(tab);
+    // scroll the panel top so banner is seen (mobile + desktop)
+    requestAnimationFrame(() => {
+      const el = document.getElementById("generator-panel-top");
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  };
+
+  useEffect(() => {
+    if (creditsRemaining !== null && creditsRemaining <= 0) {
+    setError("You’re out of credits. Check again in 24h for 10 more.");
+    setActiveTab("options"); // optional
+    }
+  }, [creditsRemaining]);
+
+  useEffect(() => {
+  const el = promptRef.current;
+  if (!el) return;
+
+  // auto-grow
+  el.style.height = "0px";
+  const next = Math.min(el.scrollHeight, 320); // cap so it doesn't get ridiculous
+  el.style.height = `${next}px`;
+}, [prompt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -426,19 +459,18 @@ export default function GeneratePoster() {
     setImageLoaded(false);
 
     if (status !== "authenticated") {
-      setError("Please sign in to generate a poster.");
+      raiseError("Please sign in to generate a poster.", "prompt");
       return;
     }
 
     const trimmed = prompt.trim();
     if (!trimmed) {
-      setError("Please enter a prompt.");
-      setActiveTab("prompt");
+      raiseError("Please enter a prompt.", "prompt");
       return;
     }
 
     if (creditsRemaining !== null && creditsRemaining <= 0) {
-      setError("You have no credits remaining.");
+      raiseError("You have no credits remaining.", "options");
       return;
     }
 
@@ -468,7 +500,7 @@ export default function GeneratePoster() {
           setError("You have no credits remaining.");
           return;
         }
-        setError(data?.error || `Generation failed (${res.status}).`);
+        raiseError(data?.error || `Generation failed (${res.status}).`, "prompt");
         return;
       }
 
@@ -498,6 +530,16 @@ export default function GeneratePoster() {
     }
   };
 
+  const clearPrompt = () => {
+  setPrompt("");
+  setSelectedStyleId(null);
+  setError(null);
+  setPresetQuery("");
+  setImageUrl(null);
+  setImageLoaded(false);
+};
+
+
   const setPresetIntoPrompt = (presetPrompt: string) => {
     setPrompt(presetPrompt);
     setActiveTab("prompt");
@@ -508,7 +550,7 @@ export default function GeneratePoster() {
     <div className="grid gap-6 lg:grid-cols-[1fr_0.95fr] lg:items-start">
       {/* LEFT: controls panel */}
       <div className="rounded-3xl border border-border bg-surface/70 shadow-soft backdrop-blur">
-        <div className="border-b border-border p-4 sm:p-6">
+        <div id="generator-panel-top" className="border-b border-border p-4 sm:p-6">
           <h2 className="text-lg font-semibold tracking-tight text-text">
             Generate a poster
           </h2>
@@ -550,11 +592,23 @@ export default function GeneratePoster() {
         <div className="grid gap-4 p-4 pb-28 sm:p-6 sm:pb-32 lg:pb-6">
           {/* Error banner */}
           {error ? (
-            <div className="rounded-2xl border border-danger/25 bg-danger/10 p-4">
-              <div className="text-sm font-semibold text-text">
-                Something went wrong
+            <div className="sticky top-2 z-10 rounded-2xl border border-danger/25 bg-danger/12 p-4 shadow-soft backdrop-blur">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-text">
+                    Something went wrong
+                  </div>
+                  <div className="mt-1 text-sm text-muted">{error}</div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={dismissError}
+                  className="shrink-0 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-semibold text-text hover:bg-surface2 transition"
+                >
+                  Dismiss
+                </button>
               </div>
-              <div className="mt-1 text-sm text-muted">{error}</div>
             </div>
           ) : null}
 
@@ -610,22 +664,63 @@ export default function GeneratePoster() {
 
                 <div className="mt-3">
                   <textarea
+                    ref={promptRef}
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
+                    maxLength={PROMPT_MAX_CHARS}
                     placeholder='Example: "A lone astronaut walking through neon rain on a cyberpunk street, dramatic lighting, cinematic"'
                     className="min-h-[150px] w-full resize-none rounded-2xl border border-border bg-surface2 px-4 py-3 text-sm text-text placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40"
                   />
+
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="text-xs text-muted">
+                      Tip: add <span className="text-text">genre</span> +{" "}
+                      <span className="text-text">mood</span> +{" "}
+                      <span className="text-text">lighting</span>.
+                    </div>
+
+                    {(() => {
+                      const count = prompt.length;
+                      const near = count >= Math.floor(PROMPT_MAX_CHARS * 0.9);
+                      const atMax = count >= PROMPT_MAX_CHARS;
+
+                      return (
+                        <div
+                          className={[
+                            "text-xs tabular-nums",
+                            atMax ? "text-danger" : near ? "text-accent" : "text-muted",
+                          ].join(" ")}
+                          aria-live="polite"
+                        >
+                          {count} / {PROMPT_MAX_CHARS}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
 
+
                 <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <button
-                    type="button"
-                    onClick={copyPrompt}
-                    disabled={!prompt.trim()}
-                    className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
-                  >
-                    Copy prompt
-                  </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={copyPrompt}
+                      disabled={!prompt.trim()}
+                      className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+                    >
+                      Copy prompt
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={clearPrompt}
+                      disabled={!prompt.trim() && !selectedStyleId}
+                      className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 disabled:opacity-50"
+                      title="Clear prompt and style"
+                    >
+                      Clear
+                    </button>
+                  </div>
 
                   <span className="text-xs text-muted">
                     Tip: add genre + mood + lighting for best results.
@@ -802,12 +897,6 @@ export default function GeneratePoster() {
                 {loading ? "Generating poster…" : "Generate poster"}
               </button>
             </div>
-
-            {creditsRemaining !== null && creditsRemaining <= 0 ? (
-              <div className="mt-3 rounded-2xl border border-danger/25 bg-danger/10 p-4 text-sm text-muted">
-                You’re out of credits. Check again in 24h for 10 more.
-              </div>
-            ) : null}
           </div>
         </div>
       </div>
@@ -900,12 +989,6 @@ export default function GeneratePoster() {
             {loading ? "Generating…" : "Generate"}
           </button>
         </div>
-
-        {creditsRemaining !== null && creditsRemaining <= 0 ? (
-          <div className="mt-2 rounded-2xl border border-danger/25 bg-danger/10 p-3 text-xs text-muted">
-            You’re out of credits. Check again in 24h for 10 more.
-          </div>
-        ) : null}
       </div>
     </div>
   </>
