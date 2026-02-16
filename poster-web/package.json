@@ -22,7 +22,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.4",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
+    "to-ico": "^1.0.1",
     "typescript": "^5"
   }
 }
