@@ -56,7 +56,7 @@ export default function ClientHomePage() {
         const res = await fetch(url.toString(), { method: "GET" });
         const raw = await res.text();
 
-        let data: any;
+        let data: unknown;
         try {
           data = JSON.parse(raw);
         } catch {
@@ -65,7 +65,25 @@ export default function ClientHomePage() {
 
         if (!res.ok) {
           const msg =
-            data?.error || data?.message || `Request failed (${res.status})`;
+            typeof data === "object" &&
+            data !== null &&
+            ("error" in data || "message" in data)
+              ? String(
+                  (
+                    data as {
+                      error?: unknown;
+                      message?: unknown;
+                    }
+                  ).error ??
+                    (
+                      data as {
+                        error?: unknown;
+                        message?: unknown;
+                      }
+                    ).message ??
+                    `Request failed (${res.status})`
+                )
+              : `Request failed (${res.status})`;
           throw new Error(msg);
         }
 
@@ -73,8 +91,10 @@ export default function ClientHomePage() {
         const items = Array.isArray(parsed.items) ? parsed.items : [];
 
         if (!cancelled) setRecent(items);
-      } catch (e: any) {
-        if (!cancelled) setRecentError(e?.message || "Something went wrong.");
+      } catch (e: unknown) {
+        const message =
+          e instanceof Error ? e.message : "Something went wrong.";
+        if (!cancelled) setRecentError(message);
       } finally {
         if (!cancelled) setRecentLoading(false);
       }

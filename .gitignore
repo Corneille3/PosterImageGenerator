@@ -22,6 +22,10 @@ terraform.tfstate.*
 # Crash logs
 crash.log
 
+# Terraform lambda artifacts
+lambda_*.zip
+infra/modules/poster_api/lambda_*.zip
+
 # -------------------------
 # OS / IDE
 # -------------------------

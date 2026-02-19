@@ -25,6 +25,10 @@ variable "model_id" { type = string }
 variable "key_prefix" { type = string }
 variable "lambda_src_dir" { type = string }
 variable "url_expires_seconds" { type = number }
+variable "public_share_prefix" {
+  type    = string
+  default = "public-share/"
+}
 
 # This is Optional in case customization is needed.
 variable "api_route_path" {
@@ -54,6 +58,12 @@ provider "aws" {
 locals {
   key_prefix_normalized = trimsuffix(var.key_prefix, "/")
   s3_prefix_for_keys    = "${local.key_prefix_normalized}/"
+  public_share_prefix   = trimsuffix(var.public_share_prefix, "/")
+  public_share_path     = "${local.public_share_prefix}/"
+}
+
+data "aws_s3_bucket" "app" {
+  bucket = var.bucket_name
 }
 
 # -------------------------
@@ -62,7 +72,7 @@ locals {
 data "archive_file" "lambda_zip" {
   type        = "zip"
   source_dir  = var.lambda_src_dir
-  output_path = "${path.module}/lambda_${var.env}.zip"
+  output_path = "${path.root}/.terraform-artifacts/lambda_${var.env}.zip"
 }
 
 resource "aws_dynamodb_table" "app" {
@@ -130,6 +140,12 @@ resource "aws_iam_role_policy" "lambda_policy" {
         Action   = ["s3:PutObject", "s3:GetObject"],
         Resource = "arn:aws:s3:::${var.bucket_name}/${local.key_prefix_normalized}/*"
       },
+      {
+        Sid      = "S3WritePublicShare",
+        Effect   = "Allow",
+        Action   = ["s3:PutObject"],
+        Resource = "arn:aws:s3:::${var.bucket_name}/${local.public_share_prefix}/*"
+      },
 
       # CloudWatch logs
       {
@@ -179,6 +195,8 @@ resource "aws_lambda_function" "fn" {
       BUCKET_NAME         = var.bucket_name
       KEY_PREFIX          = local.s3_prefix_for_keys
       URL_EXPIRES_SECONDS = tostring(var.url_expires_seconds)
+      CLOUDFRONT_BASE_URL  = "https://${aws_cloudfront_distribution.share.domain_name}"
+      PUBLIC_SHARE_PREFIX  = local.public_share_path
 
       BEDROCK_REGION = var.bedrock_region
       S3_REGION      = var.region
@@ -193,6 +211,85 @@ resource "aws_lambda_function" "fn" {
       CREDITS_RESET_SECONDS = "86400"   # 86400 seconds = 24 hours
     }
   }
+}
+
+# -------------------------
+# CloudFront for public share images (OAC)
+# -------------------------
+data "aws_cloudfront_cache_policy" "optimized" {
+  name = "Managed-CachingOptimized"
+}
+
+resource "aws_cloudfront_origin_access_control" "share" {
+  name                              = "poster-share-oac-${var.env}"
+  description                       = "OAC for share images"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "share" {
+  enabled             = true
+  comment             = "Poster public share images (${var.env})"
+  default_root_object = ""
+
+  origin {
+    domain_name              = data.aws_s3_bucket.app.bucket_regional_domain_name
+    origin_id                = "share-s3-${var.env}"
+    origin_access_control_id = aws_cloudfront_origin_access_control.share.id
+
+    s3_origin_config {
+      origin_access_identity = ""
+    }
+  }
+
+  default_cache_behavior {
+    target_origin_id       = "share-s3-${var.env}"
+    viewer_protocol_policy = "redirect-to-https"
+    allowed_methods        = ["GET", "HEAD"]
+    cached_methods         = ["GET", "HEAD"]
+    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+    compress               = true
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+
+  price_class = "PriceClass_100"
+}
+
+data "aws_iam_policy_document" "public_share_read" {
+  statement {
+    sid     = "AllowCloudFrontReadPublicShare"
+    effect  = "Allow"
+    actions = ["s3:GetObject"]
+    resources = [
+      "${data.aws_s3_bucket.app.arn}/${local.public_share_prefix}/*"
+    ]
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.share.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "public_share_read" {
+  bucket = data.aws_s3_bucket.app.id
+  policy = data.aws_iam_policy_document.public_share_read.json
 }
 
 # -------------------------
@@ -402,4 +499,8 @@ output "ddb_table_name" {
 
 output "cognito_issuer" {
   value = "https://cognito-idp.${var.region}.amazonaws.com/${aws_cognito_user_pool.pool.id}"
+}
+
+output "share_cdn_url" {
+  value = "https://${aws_cloudfront_distribution.share.domain_name}"
 }

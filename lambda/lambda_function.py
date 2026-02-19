@@ -21,6 +21,8 @@ MODEL_ID = os.environ.get("MODEL_ID", "stability.sd3-5-large-v1:0").strip()
 BUCKET_NAME = os.environ["BUCKET_NAME"].strip()
 KEY_PREFIX = os.environ.get("KEY_PREFIX", "generated/").strip()
 URL_EXPIRES_SECONDS = int(os.environ.get("URL_EXPIRES_SECONDS", "3600"))
+PUBLIC_SHARE_CDN_URL = os.environ.get("CLOUDFRONT_BASE_URL", "").strip().rstrip("/")
+PUBLIC_SHARE_PREFIX = os.environ.get("PUBLIC_SHARE_PREFIX", "public-share/").strip().rstrip("/") + "/"
 
 # DynamoDB (credits + history)
 DDB_TABLE_NAME = os.environ.get("DDB_TABLE_NAME", "").strip()
@@ -36,6 +38,10 @@ table = ddb.Table(DDB_TABLE_NAME) if ddb else None
 
 ALLOWED_ASPECT_RATIOS = {"1:1", "16:9", "9:16", "4:3", "3:4"}
 ALLOWED_OUTPUT_FORMATS = {"png", "jpg", "jpeg"}
+
+
+def _public_share_key(share_id: str) -> str:
+    return f"{PUBLIC_SHARE_PREFIX}{share_id}.png"
 
 
 def _headers():
@@ -976,6 +982,18 @@ def handle_create_share(event, sub: str):
 
         created_at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
+        public_key = _public_share_key(share_id)
+        try:
+            s3.copy_object(
+                Bucket=BUCKET_NAME,
+                CopySource={"Bucket": BUCKET_NAME, "Key": s3_key},
+                Key=public_key,
+                ContentType="image/png",
+                MetadataDirective="REPLACE",
+            )
+        except Exception as e:
+            return _resp(500, {"error": f"Failed to create public share image: {str(e)}"})
+
         # 3) Optional expiry -> stored in `ttl` (epoch seconds)
         ttl = None
         if isinstance(expires_in, (int, float)) and int(expires_in) > 0:
@@ -986,6 +1004,7 @@ def handle_create_share(event, sub: str):
             "sk": "META",
             "createdAt": created_at,
             "s3Key": s3_key,
+            "publicS3Key": public_key,
             "prompt": gen.get("prompt"),
         }
         if ttl:
@@ -993,7 +1012,10 @@ def handle_create_share(event, sub: str):
 
         table.put_item(Item=share_item)
 
-        return _resp(200, {"shareId": share_id, "shareUrl": f"/share/{share_id}"})
+        payload = {"shareId": share_id, "shareUrl": f"/share/{share_id}"}
+        if PUBLIC_SHARE_CDN_URL:
+            payload["public_image_url"] = f"{PUBLIC_SHARE_CDN_URL}/{public_key}"
+        return _resp(200, payload)
     except Exception as e:
         return _resp(500, {"error": str(e) or "Create share failed"})
 
@@ -1020,6 +1042,9 @@ def handle_get_share(event):
         if not s3_key:
             return _resp(500, {"error": "Share item missing s3Key"})
 
+        public_key = item.get("publicS3Key") or _public_share_key(share_id)
+        public_url = f"{PUBLIC_SHARE_CDN_URL}/{public_key}" if PUBLIC_SHARE_CDN_URL else None
+
         url = s3.generate_presigned_url(
             ClientMethod="get_object",
             Params={"Bucket": BUCKET_NAME, "Key": s3_key},
@@ -1030,6 +1055,7 @@ def handle_get_share(event):
         return _resp(
             200,
             {
+                "public_image_url": public_url,
                 "presigned_url": url,
                 "prompt": item.get("prompt"),
                 "createdAt": item.get("createdAt"),
