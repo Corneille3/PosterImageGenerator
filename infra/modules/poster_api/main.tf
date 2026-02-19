@@ -224,8 +224,29 @@ resource "aws_lambda_function" "fn" {
 # -------------------------
 # CloudFront for public share images (OAC)
 # -------------------------
-data "aws_cloudfront_cache_policy" "optimized" {
-  name = "Managed-CachingOptimized"
+resource "aws_cloudfront_cache_policy" "share_long_ttl" {
+  name        = "poster-share-long-ttl-${var.env}"
+  comment     = "Long TTL for immutable public-share images"
+  default_ttl = 31536000
+  max_ttl     = 31536000
+  min_ttl     = 0
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    cookies_config {
+      cookie_behavior = "none"
+    }
+
+    headers_config {
+      header_behavior = "none"
+    }
+
+    query_strings_config {
+      query_string_behavior = "none"
+    }
+
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+  }
 }
 
 resource "aws_cloudfront_origin_access_control" "share" {
@@ -256,7 +277,7 @@ resource "aws_cloudfront_distribution" "share" {
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+    cache_policy_id        = aws_cloudfront_cache_policy.share_long_ttl.id
     compress               = true
   }
 

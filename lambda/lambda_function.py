@@ -989,6 +989,7 @@ def handle_create_share(event, sub: str):
                 CopySource={"Bucket": BUCKET_NAME, "Key": s3_key},
                 Key=public_key,
                 ContentType="image/png",
+                CacheControl="public, max-age=31536000, immutable",
                 MetadataDirective="REPLACE",
             )
         except Exception as e:

@@ -79,6 +79,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       description:
         "Generate cinematic AI movie posters in seconds. Save history, reuse prompts, and share public links — powered by AWS.",
     },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      name: "Kornea Poster AI",
+      applicationCategory: "MultimediaApplication",
+      operatingSystem: "Web",
+      url: siteUrl,
+      creator: {
+        "@type": "Organization",
+        name: "Kornea",
+        url: siteUrl,
+      },
+    },
   ];
 
   return (
