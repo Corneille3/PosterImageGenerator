@@ -29,6 +29,14 @@ variable "public_share_prefix" {
   type    = string
   default = "public-share/"
 }
+variable "public_share_expiration_days" {
+  type    = number
+  default = 30
+}
+variable "public_share_noncurrent_expiration_days" {
+  type    = number
+  default = 0
+}
 
 # This is Optional in case customization is needed.
 variable "api_route_path" {
@@ -290,6 +298,30 @@ data "aws_iam_policy_document" "public_share_read" {
 resource "aws_s3_bucket_policy" "public_share_read" {
   bucket = data.aws_s3_bucket.app.id
   policy = data.aws_iam_policy_document.public_share_read.json
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "public_share" {
+  bucket = data.aws_s3_bucket.app.id
+
+  rule {
+    id     = "expire-public-share"
+    status = "Enabled"
+
+    filter {
+      prefix = "${local.public_share_prefix}/"
+    }
+
+    expiration {
+      days = var.public_share_expiration_days
+    }
+
+    dynamic "noncurrent_version_expiration" {
+      for_each = var.public_share_noncurrent_expiration_days > 0 ? [1] : []
+      content {
+        noncurrent_days = var.public_share_noncurrent_expiration_days
+      }
+    }
+  }
 }
 
 # -------------------------
