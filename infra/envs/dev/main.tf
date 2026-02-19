@@ -37,3 +37,7 @@ output "cognito_app_client_id" {
 output "cognito_issuer" {
   value = module.poster_api.cognito_issuer
 }
+
+output "share_cdn_url" {
+  value = module.poster_api.share_cdn_url
+}

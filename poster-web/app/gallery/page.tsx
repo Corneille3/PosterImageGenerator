@@ -5,20 +5,21 @@ const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://kornea-poster-ai.c
   .trim()
   .replace(/\/$/, "");
 
+const ogImage = new URL("/images/dish3.png", siteUrl).toString();
+
 export const metadata: Metadata = {
   title: "Gallery — Kornea Poster AI",
   description:
     "Browse a selection of cinematic AI posters generated with Kornea Poster AI.",
   alternates: { canonical: "/gallery" },
   openGraph: {
-    type: "website",
-    url: "/gallery",
     title: "Gallery — Kornea Poster AI",
     description:
       "Browse a selection of cinematic AI posters generated with Kornea Poster AI.",
+    url: "/gallery",
     images: [
       {
-        url: new URL("/images/dish3.png", siteUrl).toString(),
+        url: ogImage,
         width: 1200,
         height: 630,
         alt: "Kornea Poster AI Gallery",
@@ -26,11 +27,10 @@ export const metadata: Metadata = {
     ],
   },
   twitter: {
-    card: "summary_large_image",
     title: "Gallery — Kornea Poster AI",
     description:
       "Browse a selection of cinematic AI posters generated with Kornea Poster AI.",
-    images: [new URL("/images/dish3.png", siteUrl).toString()],
+    images: [ogImage],
   },
 };
 

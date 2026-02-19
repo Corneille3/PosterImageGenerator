@@ -1,5 +1,5 @@
 import Link from "next/link";
-import GeneratePoster from "../components/GeneratePoster";
+import GeneratePoster from "../../components/GeneratePoster";
 
 export default function DashboardPage() {
   return (
