@@ -187,6 +187,7 @@ NEXTAUTH_SECRET=your-secret
 COGNITO_CLIENT_ID=xxxx
 COGNITO_DOMAIN=https://xxxx.auth.us-east-2.amazoncognito.com
 COGNITO_ISSUER=https://cognito-idp.us-east-2.amazonaws.com/xxxx
+NEXT_PUBLIC_COGNITO_LOGIN_URL=https://xxxx.auth.us-east-2.amazoncognito.com/login?response_type=code&client_id=xxxx&redirect_uri=https%3A%2F%2Fkornea-poster-ai.com%2Fapi%2Fauth%2Fcallback%2Fcognito
 
 API_BASE_URL=https://<api-id>.execute-api.us-east-2.amazonaws.com
 

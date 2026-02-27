@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
+import { COGNITO_LOGIN_URL } from "../lib/auth";
 
 function cx(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(" ");
@@ -187,7 +188,11 @@ export default function Nav() {
           {/* Desktop CTA */}
           {!isMobile && (
             <Link
-              href="/dashboard#generator"
+              href={
+                status === "authenticated"
+                  ? "/dashboard#generator"
+                  : COGNITO_LOGIN_URL
+              }
               className="hidden sm:inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2 text-sm font-semibold text-white
                          shadow-[0_0_34px_rgba(122,92,255,0.18)]
                          hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_0_50px_rgba(122,92,255,0.3)]
@@ -205,7 +210,7 @@ export default function Nav() {
           {/* Sign in / Sign out */}
           {status !== "authenticated" ? (
             <Link
-              href="/api/auth/signin"
+              href={COGNITO_LOGIN_URL}
               className="inline-flex items-center justify-center rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text hover:bg-surface2 transition-colors hover:-translate-y-0.5 active:translate-y-0"
             >
               Sign in
@@ -319,7 +324,7 @@ export default function Nav() {
               <div className="border-t border-border px-5 py-5 flex justify-center">
                 {status !== "authenticated" ? (
                   <Link
-                    href="/api/auth/signin"
+                    href={COGNITO_LOGIN_URL}
                     onClick={() => setIsMenuOpen(false)}
                     className="inline-flex items-center justify-center rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-white
                                shadow-[0_0_34px_rgba(122,92,255,0.18)]

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { COGNITO_LOGIN_URL } from "../lib/auth";
 
 export default function LandingCTA({ variant }: { variant?: "large" }) {
   const { status } = useSession();
@@ -17,7 +18,7 @@ export default function LandingCTA({ variant }: { variant?: "large" }) {
       Open app
     </Link>
   ) : (
-    <Link href="/api/auth/signin" className={base}>
+    <Link href={COGNITO_LOGIN_URL} className={base}>
       Sign in to generate
     </Link>
   );
