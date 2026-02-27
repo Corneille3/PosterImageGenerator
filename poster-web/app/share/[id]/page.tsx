@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -112,9 +113,27 @@ export default async function SharePage({
 
   const data = await res.json();
   const imageUrl = data.public_image_url ?? data.presigned_url;
+  const jsonLd =
+    imageUrl
+      ? {
+          "@context": "https://schema.org",
+          "@type": "ImageObject",
+          name: "Shared poster",
+          description: toDescription(data.prompt),
+          contentUrl: imageUrl,
+        }
+      : null;
 
   return (
     <div className="min-h-screen bg-bg">
+      {jsonLd ? (
+        <Script
+          id="ld-json-share-image"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      ) : null}
       <div className="mx-auto max-w-4xl px-4 py-10">
         <h1 className="text-xl font-semibold tracking-tight text-text">
           Shared poster

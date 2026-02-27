@@ -29,6 +29,14 @@ variable "public_share_prefix" {
   type    = string
   default = "public-share/"
 }
+variable "public_share_expiration_days" {
+  type    = number
+  default = 30
+}
+variable "public_share_noncurrent_expiration_days" {
+  type    = number
+  default = 0
+}
 
 # This is Optional in case customization is needed.
 variable "api_route_path" {
@@ -216,8 +224,29 @@ resource "aws_lambda_function" "fn" {
 # -------------------------
 # CloudFront for public share images (OAC)
 # -------------------------
-data "aws_cloudfront_cache_policy" "optimized" {
-  name = "Managed-CachingOptimized"
+resource "aws_cloudfront_cache_policy" "share_long_ttl" {
+  name        = "poster-share-long-ttl-${var.env}"
+  comment     = "Long TTL for immutable public-share images"
+  default_ttl = 31536000
+  max_ttl     = 31536000
+  min_ttl     = 0
+
+  parameters_in_cache_key_and_forwarded_to_origin {
+    cookies_config {
+      cookie_behavior = "none"
+    }
+
+    headers_config {
+      header_behavior = "none"
+    }
+
+    query_strings_config {
+      query_string_behavior = "none"
+    }
+
+    enable_accept_encoding_brotli = true
+    enable_accept_encoding_gzip   = true
+  }
 }
 
 resource "aws_cloudfront_origin_access_control" "share" {
@@ -248,7 +277,7 @@ resource "aws_cloudfront_distribution" "share" {
     viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
-    cache_policy_id        = data.aws_cloudfront_cache_policy.optimized.id
+    cache_policy_id        = aws_cloudfront_cache_policy.share_long_ttl.id
     compress               = true
   }
 
@@ -290,6 +319,30 @@ data "aws_iam_policy_document" "public_share_read" {
 resource "aws_s3_bucket_policy" "public_share_read" {
   bucket = data.aws_s3_bucket.app.id
   policy = data.aws_iam_policy_document.public_share_read.json
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "public_share" {
+  bucket = data.aws_s3_bucket.app.id
+
+  rule {
+    id     = "expire-public-share"
+    status = "Enabled"
+
+    filter {
+      prefix = "${local.public_share_prefix}/"
+    }
+
+    expiration {
+      days = var.public_share_expiration_days
+    }
+
+    dynamic "noncurrent_version_expiration" {
+      for_each = var.public_share_noncurrent_expiration_days > 0 ? [1] : []
+      content {
+        noncurrent_days = var.public_share_noncurrent_expiration_days
+      }
+    }
+  }
 }
 
 # -------------------------

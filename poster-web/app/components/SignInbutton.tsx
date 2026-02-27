@@ -1,6 +1,7 @@
 "use client";
 
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { COGNITO_LOGIN_URL } from "../lib/auth";
 
 export default function SignInButton() {
   const { data: session, status } = useSession();
@@ -24,8 +25,11 @@ export default function SignInButton() {
 
   return (
     <button
-      onClick={() => signIn("cognito")}
+      onClick={() => {
+        window.location.href = COGNITO_LOGIN_URL;
+      }}
       className="inline-flex items-center justify-center rounded-xl bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent2 transition-colors"
+      type="button"
     >
       Sign in
     </button>

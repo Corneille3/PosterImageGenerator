@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import GalleryClient from "./GalleryClient";
 
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://kornea-poster-ai.com")
@@ -35,5 +36,34 @@ export const metadata: Metadata = {
 };
 
 export default function GalleryPage() {
-  return <GalleryClient />;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Home",
+        item: `${siteUrl}/`,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: "Gallery",
+        item: `${siteUrl}/gallery`,
+      },
+    ],
+  };
+
+  return (
+    <>
+      <Script
+        id="ld-json-gallery-breadcrumbs"
+        type="application/ld+json"
+        strategy="beforeInteractive"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <GalleryClient />
+    </>
+  );
 }
