@@ -423,6 +423,30 @@ export default function ClientHomePage() {
         </div>
       </section>
 
+      {/* ABOUT */}
+      <section className="mt-14">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-surface/60 p-8 text-center">
+          <h2 className="text-2xl font-semibold text-text">About Kornea Poster AI</h2>
+          <p className="mt-2 text-muted">
+            Kornea Poster AI helps creators turn ideas into cinematic posters in
+            minutes. Describe a scene, generate a polished visual, and keep every
+            result in one place.
+          </p>
+          <p className="mt-2 text-muted">
+            Built for filmmakers, marketers, and storytellers who want
+            professional-looking posters without complex tools.
+          </p>
+          <div className="mt-5">
+            <Link
+              href="/about"
+              className="text-sm font-semibold text-text hover:text-accent transition-colors"
+            >
+              Learn more →
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="mt-14">
         <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-[rgba(61,255,154,0.10)] p-10 text-center">
