@@ -1,10 +1,10 @@
 // app/layout.tsx
 import type { Metadata } from "next";
 import Script from "next/script";
-import Link from "next/link";
 import "./globals.css";
 import Providers from "./providers";
 import Nav from "./components/Nav";
+import Footer from "./components/Footer";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://kornea-poster-ai.com")
@@ -110,22 +110,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
             {children}
           </main>
-          <footer className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8 py-8 text-sm text-muted">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
-              <span>© {new Date().getFullYear()} Kornea-Poster-Generator</span>
-              <div className="flex items-center gap-4">
-                <Link href="/privacy" className="hover:text-text transition-colors">
-                  Privacy
-                </Link>
-                <Link
-                  href="/data-deletion"
-                  className="hover:text-text transition-colors"
-                >
-                  Data Deletion
-                </Link>
-              </div>
-            </div>
-          </footer>
+          <Footer />
           <SpeedInsights />
         </Providers>
       </body>
