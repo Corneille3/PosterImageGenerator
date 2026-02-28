@@ -423,6 +423,30 @@ export default function ClientHomePage() {
         </div>
       </section>
 
+      {/* VIDEO (landing only) */}
+      {!isAuthed ? (
+        <section className="mt-14">
+          <div className="mx-auto max-w-4xl rounded-3xl border border-border bg-surface/60 p-4 sm:p-6">
+            <div className="px-1 pb-3 text-center">
+              <h2 className="text-xl font-semibold text-text">
+                A quick walkthrough of the generator.
+              </h2>
+            </div>
+            <div className="overflow-hidden rounded-2xl">
+              <video
+                className="w-full h-auto"
+                controls
+                preload="metadata"
+                playsInline
+              >
+                <source src="/videohome.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {/* CTA */}
       <section className="mt-14">
         <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-[rgba(61,255,154,0.10)] p-10 text-center">
