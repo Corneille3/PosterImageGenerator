@@ -113,6 +113,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Footer />
           <SpeedInsights />
         </Providers>
+        <SpeedInsights />
       </body>
     </html>
   );
